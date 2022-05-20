@@ -58,6 +58,16 @@ earthdata_version = {
     'landdata':'2.1',
 }
 
+earthdata_file_extension = {
+    'vegetation':'.hdf',
+    'albedo':'.hdf',
+    'lulc':'.hdf',
+    'et0':'.hdf',
+    'snow':'.hdf',
+    'precipitation':'.hdf5',
+    'landdata':'.nc4',
+}
+
 auth = Auth().login(strategy="netrc")
 
 if __name__ == '__main__':
@@ -85,6 +95,7 @@ if __name__ == '__main__':
     product = earthdata_products.get(ed_opt)
     platform = earthdata_platform.get(ed_opt)
     version = earthdata_version.get(ed_opt)
+    file_extension = earthdata_file_extension.get(ed_opt)
 
     database_path = os.path.join(path,product)
     end_date = date.today().strftime('%Y-%m-%d')
@@ -92,7 +103,7 @@ if __name__ == '__main__':
     if os.path.exists(database_path):
         print(f'Checking folder {database_path}')
         files = os.listdir(database_path)
-        dates = [datetime.strptime(value.split('.')[1], 'A%Y%j') for value in files if '.hdf' in value]
+        dates = [datetime.strptime(value.split('.')[1], 'A%Y%j') for value in files if file_extension in value.lower()]
         if len(dates) >= 1:
             recent_date = max(dates).strftime('%Y-%m-%d')
             print(f'Found {len(dates)} files. The most recent date is {recent_date}')
