@@ -68,6 +68,12 @@ earthdata_file_extension = {
     'landdata':'.nc4',
 }
 
+# https://github.com/podaac/data-subscriber#step-2-setup-your-earthdata-login
+# about netrc (.netrc):
+# machine urs.earthdata.nasa.gov
+#     login <your username>
+#     password <your password>
+
 auth = Auth().login(strategy="netrc")
 
 if __name__ == '__main__':
@@ -132,7 +138,7 @@ if __name__ == '__main__':
         download_links = [value[0] for value in data_links]
 
     # because for nsidc many threads fail
-    if(product == 'snow'):
+    if(product == 'snow' or product == 'landdata'):
         threads = 1
     else:
         threads = 8

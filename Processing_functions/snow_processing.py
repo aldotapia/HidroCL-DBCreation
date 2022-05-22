@@ -70,11 +70,11 @@ if len(raw_files) >= 1:
             temporal_raster = os.path.join(temporal_folder,'snow_'+file_id+'.tif')
             raster_mosaic.rio.to_raster(temporal_raster, compress='LZW')
             subprocess.call([rscript_path,
-                             #"--vanilla",
+                             "--vanilla",
                              WeightedSumExtraction,
                              polys_path,
                              temporal_raster,
                              os.path.join(temporal_folder,'snow_'+file_id+'.csv')])
             os.remove(temporal_raster)    
             end = time.time()
-            print(f'Time elapsed for {file_id} {str(round(end - start))} seconds')
+            print(f'Time elapsed for {file_id} {str(round(end - start))}: seconds')
