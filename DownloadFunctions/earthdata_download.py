@@ -109,7 +109,10 @@ if __name__ == '__main__':
     if os.path.exists(database_path):
         print(f'Checking folder {database_path}')
         files = os.listdir(database_path)
-        dates = [datetime.strptime(value.split('.')[1], 'A%Y%j') for value in files if file_extension in value.lower()]
+        if(ed_opt in ['landdata','precipitation']):
+            dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%m%d') for value in files if file_extension in value.lower()]
+        else:    
+            dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%j') for value in files if file_extension in value.lower()]
         if len(dates) >= 1:
             recent_date = max(dates).strftime('%Y-%m-%d')
             print(f'Found {len(dates)} files. The most recent date is {recent_date}')
@@ -138,7 +141,7 @@ if __name__ == '__main__':
         download_links = [value[0] for value in data_links]
 
     # because for nsidc many threads fail
-    if(product == 'snow' or product == 'landdata'):
+    if(ed_opt in ['snow','landdata','precipitation']):
         threads = 1
     else:
         threads = 8
