@@ -40,8 +40,11 @@ rscript_path = "path/to/Rscript"
 WeightedSumExtraction = "path/to/WeightedSumExtraction.R"
 PreparingPackages = "path/to/PreparingPackages.R"
 
+# set up
 home = str(Path.home())
 temporal_folder = os.path.join(home,'tempHidroCL')
+
+# check is R libraries are installed
 stats_file = subprocess.call([rscript_path, "--vanilla", PreparingPackages])
 
 # Check or create temporal folder
