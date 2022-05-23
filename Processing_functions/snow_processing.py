@@ -33,7 +33,8 @@ import geopandas as gpd
 # path to files
 main_path = 'path/to/MOD10A2/' # path with modis data
 polys_path = 'path/to/HidroCL_boundaries_sinu.shp'# polygons path
-database_path = "/Users/aldotapia/camels_test/MOD10A2/snow.csv" # CSV database
+database_path = "/path/to/Databases/snow.csv" # CSV database
+log_file = "/path/to/Logs/snow.txt"
 
 # path for Rscript and R files
 rscript_path = "path/to/Rscript"
@@ -127,3 +128,5 @@ if len(raw_files) >= 1:
                 os.remove(temporal_raster)    
                 end = time.time()
                 print(f'Time elapsed for {file_id}: {str(round(end - start))} seconds')
+                with open(log_file, 'a') as txt_file:
+                    txt_file.write(f'ID {file_id}. Date: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}. Process time: {str(round(end - start))} s. Database: {database_path}. \n')
