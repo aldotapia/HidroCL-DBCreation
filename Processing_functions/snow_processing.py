@@ -123,4 +123,4 @@ if len(raw_files) >= 1:
                     print('Inconsistencies with gauge ids!')
                 os.remove(temporal_raster)    
                 end = time.time()
-                print(f'Time elapsed for {file_id} {str(round(end - start))}: seconds')
+                print(f'Time elapsed for {file_id}: {str(round(end - start))} seconds')
