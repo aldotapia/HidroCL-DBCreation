@@ -27,4 +27,4 @@ result <- try({exactextractr::exact_extract(x = terra::rast(r),
                                             append_cols = 'gauge_id',
                                             progress = F)}, silent = TRUE)
 terra::tmpFiles(remove = T)
-write.table(x = result,file = out)
+write.table(x = result,file = out,sep = ',', row.names = F)
