@@ -68,27 +68,27 @@ earthdata_file_extension = {
     'landdata':'.nc4',
 }
 
-# https://github.com/podaac/data-subscriber#step-2-setup-your-earthdata-login
-# about netrc (.netrc):
-# machine urs.earthdata.nasa.gov
-#     login <your username>
-#     password <your password>
-
-auth = Auth().login(strategy="netrc")
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="""
-    Script for downloading based on earthdata library,
+    Script for downloading remote sengin or model
+    datasets based on earthdata library,
     (for searching and accessing NASA datasets
     using NASA CMR and EDL APIs)
     Use CRTL + C for interrunpt with keyboard.
+
+    Modis grids are related to the nature of
+    the creation of this function (HidroCL limits).
+
+    Use startdate to set the beggining of the
+    time serie. If it is not set, the begginning
+    is either 2000-01-01 or the most recent date
     """, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('--type',help = 'Product type',
+    parser.add_argument('type',help = 'Product type',
         choices = ['vegetation','albedo','lulc','et0',
         'snow','precipitation','landdata'])
-    parser.add_argument('--path',
+    parser.add_argument('path',
         help = 'Path for downloaded products. Do not include product name')
-    parser.add_argument('--startdate',
+    parser.add_argument('startdate', nargs='?',
         help = 'Starting date in YYYY-MM-DD format',
         default = None)
 
@@ -109,8 +109,10 @@ if __name__ == '__main__':
     if os.path.exists(database_path):
         print(f'Checking folder {database_path}')
         files = os.listdir(database_path)
-        if(ed_opt in ['landdata','precipitation']):
+        if(ed_opt == 'landdata'):
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%m%d') for value in files if file_extension in value.lower()]
+        elif(ed_opt == 'precipitation'):
+            dates = [datetime.strptime(value.lower().split('.')[4].split('-')[0], '%Y%m%d') for value in files if file_extension in value.lower()]    
         else:    
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%j') for value in files if file_extension in value.lower()]
         if len(dates) >= 1:
@@ -126,6 +128,13 @@ if __name__ == '__main__':
         print(f'Folder {database_path} not found, creating it')
         os.makedirs(database_path)
         start_date = '2000-01-01'
+    
+    # https://github.com/podaac/data-subscriber#step-2-setup-your-earthdata-login
+    # about netrc (.netrc):
+    # machine urs.earthdata.nasa.gov
+    #     login <your username>
+    #     password <your password>
+    auth = Auth().login(strategy="netrc")    
 
     Query = (DataGranules(auth)
         .short_name(product)
@@ -141,9 +150,11 @@ if __name__ == '__main__':
         download_links = [value[0] for value in data_links]
 
     # because for nsidc many threads fail
-    if(ed_opt in ['snow','landdata','precipitation']):
+    if(ed_opt == 'snow'):
         threads = 1
-    else:
+    elif(ed_opt in ['landdata','precipitation']):
+        threads = 2
+    else:    
         threads = 8
 
     store = Store(auth)
