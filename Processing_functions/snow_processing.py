@@ -125,8 +125,13 @@ if len(raw_files) >= 1:
                                 the_file.write(data_line)
                 else:
                     print('Inconsistencies with gauge ids!')
+                os.remove(result_file)    
                 os.remove(temporal_raster)    
                 end = time.time()
                 print(f'Time elapsed for {file_id}: {str(round(end - start))} seconds')
                 with open(log_file, 'a') as txt_file:
                     txt_file.write(f'ID {file_id}. Date: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}. Process time: {str(round(end - start))} s. Database: {database_path}. \n')
+            else:
+                print(f'Scene ID {file_id} does not have enough files')
+                with open(log_file, 'a') as txt_file:
+                    txt_file.write(f'ID {file_id}. Date: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}. Error, not enough files. Files: {len(selected_files)} \n')        
