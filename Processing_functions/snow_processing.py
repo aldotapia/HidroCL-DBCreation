@@ -29,17 +29,18 @@ import time
 from datetime import datetime
 import csv
 import geopandas as gpd
+import hidrocl_paths as hcl
 
 # path to files
-main_path = 'path/to/MOD10A2/' # path with modis data
-polys_path = 'path/to/HidroCL_boundaries_sinu.shp'# polygons path
-database_path = "/path/to/Databases/snow.csv" # CSV database
-log_file = "/path/to/Logs/snow.txt"
+main_path = hcl.mod10a2_path # path with modis data
+polys_path = hcl.hidrocl_sinusoidal # polygons path
+database_path = hcl.database_snw_o_modis_sca_cum # CSV database
+log_file = hcl.log_snw_o_modis_sca_cum # log file
 
 # path for Rscript and R files
-rscript_path = "path/to/Rscript"
-WeightedSumExtraction = "path/to/WeightedSumExtraction.R"
-PreparingPackages = "path/to/PreparingPackages.R"
+rscript_path = hcl.rscript_path
+WeightedSumExtraction = hcl.WeightedSumExtraction
+PreparingPackages = hcl.PreparingPackages
 
 # set up
 home = str(Path.home())

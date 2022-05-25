@@ -4,4 +4,6 @@ Processing_functions/.DS_Store
 paths_credentials_etc
 HidroCL.sublime-project
 HidroCL.sublime-workspace
-Processing_functions/Tests.ipynb
+Processing_functions/.ipynb_checkpoints/snow_processing-checkpoint.py
+*.ipynb
+Processing_functions/hidrocl_paths.py
