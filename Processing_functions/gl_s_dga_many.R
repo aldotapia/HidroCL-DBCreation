@@ -24,7 +24,7 @@ ipg %<>% mutate(DENS_STIMD = EQ_AGUAKM3/VOL_km3) %>%
   st_zm(drop = T, what = 'ZM')
 
 # save new IPG shapefie
-write_sf(ipg,ipg_hidrocl)
+write_sf(ipg,ipg_hidrocl, overwrite = T)
 
 # load HidroCL polygons
 hidrocl <- read_sf(hidrocl_utm)
@@ -55,8 +55,8 @@ for(i in seq_along(hidrocl$gauge_id)){
   inter_temp %>% st_drop_geometry() %>%
     mutate(class = ifelse(CLASIFICA == 'GLACIARETE','gt',
                           ifelse(CLASIFICA == 'GLACIAR ROCOSO',
-                                 'rgl','gl'))) %>% 
-    mutate(orien = ifelse(orien == 0,'N','S')) %>% 
+                                 'rgl','g'))) %>% 
+    mutate(orien = ifelse(orien == 0,'n','s')) %>% 
     mutate(VOL_m3 = area_m2*ESP_MED, WatEq_m3 = VOL_m3*DENS_STIMD) %>% 
     select(class, orien, area_m2, WatEq_m3, alt) %>% 
     group_by(class, orien) %>%
@@ -67,7 +67,7 @@ for(i in seq_along(hidrocl$gauge_id)){
   print(paste0(hidrocl$gauge_id[i], ' done. Iteration number ',i))
   if(dim(result_list[[i]])[1]==0){
     # create dummy data if the polygon doesn't have glaciers
-    result_list[[i]] <- data.frame( class = 'gl', orien = 'N', Area_m2 = 0,
+    result_list[[i]] <- data.frame( class = 'g', orien = 'n', Area_m2 = 0,
                                     WatEq_m3 = 0, Alt_msl = 0, ID = hidrocl$gauge_id[i])
   }
 }
@@ -80,11 +80,11 @@ names(result) <- c('class','orien','a_tot','we_tot','alt_mean','ID')
 
 #create final database
 result %>% ungroup() %>%
-  mutate(a_tot = round(a_tot/1000000,2), we_tot = round(we_tot/1000000000,4),
+  mutate(a_tot = round(a_tot), we_tot = round(we_tot),
          alt_mean = round(alt_mean)) %>% 
   pivot_wider(id_cols = ID,names_from = c(class, orien),
               values_from = c(a_tot,we_tot,alt_mean),
-              names_glue = "gl_s_dga_{class}{.value}_{orien}_d_p0d",
+              names_glue = "gl_s_dga_{class}{.value}_{orien}_c_c",
               values_fill = 0) -> db
 
 # save database
