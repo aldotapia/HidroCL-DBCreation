@@ -152,8 +152,10 @@ if __name__ == '__main__':
     # because for nsidc many threads fail
     if(ed_opt == 'snow'):
         threads = 1
-    elif(ed_opt in ['landdata','precipitation']):
+    elif(ed_opt == 'landdata'):
         threads = 2
+    elif(ed_opt == 'precipitation'):
+        threads = 3
     else:    
         threads = 8
 
