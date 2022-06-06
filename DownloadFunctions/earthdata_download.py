@@ -20,9 +20,10 @@
 # library installation
 
 from earthdata import Auth, DataGranules, DataCollections, Store
-from datetime import date
 import os
+from datetime import date
 from datetime import datetime
+from datetime import timedelta
 import argparse
 
 grids = ['h13v14','h14v14','h12v13','h13v13','h11v12',
@@ -116,8 +117,9 @@ if __name__ == '__main__':
         else:    
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%j') for value in files if file_extension in value.lower()]
         if len(dates) >= 1:
-            recent_date = max(dates).strftime('%Y-%m-%d')
-            print(f'Found {len(dates)} files. The most recent date is {recent_date}')
+            recent_date = max(dates)
+            print(f'Found {len(dates)} files. The most recent date is {recent_date.strftime('%Y-%m-%d')}. Subtracting 16 days')
+            recent_date = recent_date - timedelta(16)
         else:
             recent_date = '2000-01-01'
             print(f'Found {len(dates)} files.')
