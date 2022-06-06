@@ -125,6 +125,7 @@ if __name__ == '__main__':
             recent_date = max(dates)
             print(f'Found {len(dates)} files. The most recent date is {recent_date.strftime("%Y-%m-%d")}')
             recent_date = recent_date - timedelta(16)
+            recent_date = recent_date.strftime("%Y-%m-%d")
         else:
             recent_date = '2000-01-01'
             print(f'Found {len(dates)} files.')
