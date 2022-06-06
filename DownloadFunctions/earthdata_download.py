@@ -92,12 +92,16 @@ if __name__ == '__main__':
     parser.add_argument('startdate', nargs='?',
         help = 'Starting date in YYYY-MM-DD format',
         default = None)
+    parser.add_argument('enddate', nargs='?',
+        help = 'End date in YYYY-MM-DD format',
+        default = None)
 
     args = parser.parse_args()
 
     ed_opt = args.type
     path = args.path
     start_date = args.startdate
+    end_date = args.enddate
 
     product = earthdata_products.get(ed_opt)
     platform = earthdata_platform.get(ed_opt)
@@ -105,7 +109,8 @@ if __name__ == '__main__':
     file_extension = earthdata_file_extension.get(ed_opt)
 
     database_path = os.path.join(path,product)
-    end_date = date.today().strftime('%Y-%m-%d')
+    if end_date is None:
+        end_date = date.today().strftime('%Y-%m-%d')
 
     if os.path.exists(database_path):
         print(f'Checking folder {database_path}')
@@ -113,7 +118,7 @@ if __name__ == '__main__':
         if(ed_opt == 'landdata'):
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%m%d') for value in files if file_extension in value.lower()]
         elif(ed_opt == 'precipitation'):
-            dates = [datetime.strptime(value.lower().split('.')[4].split('-')[0], '%Y%m%d') for value in files f file_extension in value.lower()]    
+            dates = [datetime.strptime(value.lower().split('.')[4].split('-')[0], '%Y%m%d') for value in files if file_extension in value.lower()]    
         else:    
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%j') for value in files if file_extension in value.lower()]
         if len(dates) >= 1:
