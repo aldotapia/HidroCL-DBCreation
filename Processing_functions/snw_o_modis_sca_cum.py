@@ -175,7 +175,7 @@ if len(raw_files) >= 1:
 
                 os.remove(result_n_file)
                 os.remove(result_s_file)
-                #os.remove(temporal_raster)    
+                os.remove(temporal_raster)    
                 end = time.time()
                 time_dif = str(round(end - start))
                 currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
