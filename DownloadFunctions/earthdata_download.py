@@ -113,12 +113,12 @@ if __name__ == '__main__':
         if(ed_opt == 'landdata'):
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%m%d') for value in files if file_extension in value.lower()]
         elif(ed_opt == 'precipitation'):
-            dates = [datetime.strptime(value.lower().split('.')[4].split('-')[0], '%Y%m%d') for value in files if file_extension in value.lower()]    
+            dates = [datetime.strptime(value.lower().split('.')[4].split('-')[0], '%Y%m%d') for value in files f file_extension in value.lower()]    
         else:    
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%j') for value in files if file_extension in value.lower()]
         if len(dates) >= 1:
             recent_date = max(dates)
-            print(f'Found {len(dates)} files. The most recent date is {recent_date.strftime("%Y-%m-%d")}. Subtracting 16 days')
+            print(f'Found {len(dates)} files. The most recent date is {recent_date.strftime("%Y-%m-%d")}')
             recent_date = recent_date - timedelta(16)
         else:
             recent_date = '2000-01-01'
