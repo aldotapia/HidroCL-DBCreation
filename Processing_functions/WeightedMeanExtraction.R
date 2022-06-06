@@ -17,9 +17,15 @@ sf <- f_args[1] # polygon for extraction
 r <- f_args[2] # raster for extraction
 out <- f_args[3] # output file
 
+custom_mean <- function(values, coverage_fractions){
+  covf <- coverage_fractions[!is.na(values)]
+  vals <- values[!is.na(values)]
+  try(round(sum(vals*covf)/sum(covf)),silent = TRUE)
+}
+
 result <- try({exactextractr::exact_extract(x = terra::rast(r),
                                             y = sf::read_sf(sf),
-                                            fun = 'mean',
+                                            fun = custom_mean,
                                             append_cols = 'gauge_id',
                                             progress = F)}, silent = TRUE)
 terra::tmpFiles(remove = T)
