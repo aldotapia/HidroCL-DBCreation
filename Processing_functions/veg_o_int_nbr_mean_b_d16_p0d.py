@@ -153,5 +153,6 @@ if len(raw_files) >= 1:
                     txt_file.write(f'ID {file_id}. Date: {currenttime}. Process time: {time_dif} s. Database: {database_nbr}. \n')
             else:
                 print(f'Scene ID {file_id} does not have enough files')
+                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 with open(log_file, 'a') as txt_file:
                     txt_file.write(f'ID {file_id}. Date: {currenttime}. Error, not enough files. Files: {len(selected_files)} \n')        
