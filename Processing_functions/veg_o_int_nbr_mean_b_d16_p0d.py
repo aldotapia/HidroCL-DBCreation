@@ -5,7 +5,7 @@
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -23,14 +23,14 @@ import os
 import rioxarray as rioxr
 from rioxarray.merge import merge_arrays
 import re
-from pathlib import Path
 import subprocess
 import time
 from datetime import datetime
-import csv
 import geopandas as gpd
+
 import hidrocl_paths as hcl
-from math import ceil
+import hidrocl
+
 
 # path to files
 main_path = hcl.mod13q1_path # path with modis data
@@ -43,42 +43,23 @@ rscript_path = hcl.rscript_path
 WeightedMeanExtraction = hcl.WeightedMeanExtraction
 PreparingPackages = hcl.PreparingPackages
 
-# set up
-home = str(Path.home())
-temporal_folder = os.path.join(home,'tempHidroCL')
-
 # check is R libraries are installed
 stats_file = subprocess.call([rscript_path, "--vanilla", PreparingPackages])
 
-# Check or create temporal folder
-if os.path.exists(temporal_folder):
-    print(f'Checking temporary folder {temporal_folder}')
-    temp_files = os.listdir(temporal_folder)
-    print(f'Found {len(temp_files)} files')
-else:
-    os.makedirs(temporal_folder)
-    print(f'Temporary folder {temporal_folder} not found, creating it')
+# set temporal folder in user's home folder
+temporal_folder = hidrocl.temp_folder()
 
 polys = gpd.read_file(polys_path) # for getting gauge_id values
 gauges = polys.gauge_id.tolist()
 
-# Check or create nbr database    
-if os.path.exists(database_nbr):
-    print('NBR database found, using ' + database_nbr)
-    with open(database_nbr, 'r') as the_file:
-        modis_in_db = [row[0] for row in csv.reader(the_file,delimiter=',')]
-else:
-    print('NBR database not found, creating it for ' + database_nbr)
-    header_line = [str(s) for s in gauges]
-    header_line.insert(0,'modis_id')
-    header_line.insert(1,'date')
-    header_line  = ','.join(header_line) + '\n'
-    with open(database_nbr,'w') as the_file:
-        the_file.write(header_line)
-    modis_in_db = ['modis_id']
+# Check or create nbr database
+modis_in_db = hidrocl.database_check(db_path = database_nbr,
+    id_name = 'modis_id',
+    catchment_names = gauges)
     
 raw_files = [value for value in os.listdir(main_path) if '.hdf' in value]
 raw_ids = [value.split('.')[1] for value in raw_files]
+
 if len(raw_files) >= 1:
     files_id = []
     for raw_id in raw_ids:
@@ -102,17 +83,12 @@ if len(raw_files) >= 1:
                         nbr_single.append((NIR-MIR)/(NIR+MIR))
 
                 nbr_mosaic = merge_arrays(nbr_single)
-
                 nbr_mosaic = nbr_mosaic.where((nbr_mosaic <= 1) & (nbr_mosaic >= -1))
-
                 nbr_mosaic = nbr_mosaic.where(nbr_mosaic != nbr_mosaic.rio.nodata)
-
                 nbr_mosaic = (nbr_mosaic * 1000).astype('int16')
 
                 temporal_raster_nbr = os.path.join(temporal_folder,'nbr_'+file_id+'.tif')
-                
                 nbr_mosaic.rio.to_raster(temporal_raster_nbr, compress='LZW')
-                
                 result_nbr = os.path.join(temporal_folder,'nbr_'+file_id+'.csv')
                 
                 subprocess.call([rscript_path,
@@ -122,26 +98,11 @@ if len(raw_files) >= 1:
                                  temporal_raster_nbr,
                                  result_nbr])
 
-                with open(result_nbr) as csv_file:
-                    csvreader = csv.reader(csv_file, delimiter=',')
-                    gauge_id_result = []
-                    index_mean_result = []    
-                    for row in csvreader:  
-                            gauge_id_result.append(row[0])
-                            index_mean_result.append(row[1])
-                gauge_id_result = [int(value) for value in gauge_id_result[1:]]
-                index_mean_result = [str(ceil(float(value))) for value in index_mean_result[1:]]
-                
-                if(gauges == gauge_id_result):
-                    index_mean_result.insert(0,file_id)
-                    index_mean_result.insert(1,file_date)
-                    data_line  = ','.join(index_mean_result) + '\n'
-                    with open(database_nbr,'a') as the_file:
-                                the_file.write(data_line)
-                else:
-                    print('Inconsistencies with gauge ids!')
-
-                del data_line
+                hidrocl.write_line(db_path = database_nbr,
+                    result = result_nbr,
+                    catchment_names = gauges,
+                    file_id = file_id,
+                    file_date = file_date)
 
                 os.remove(result_nbr)
                 os.remove(temporal_raster_nbr)

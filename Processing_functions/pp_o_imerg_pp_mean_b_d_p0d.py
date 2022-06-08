@@ -5,7 +5,7 @@
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -20,15 +20,17 @@
 # library installation
 
 import os
-import subprocess
-from pathlib import Path
-import geopandas as gpd
+import rioxarray as rioxr
+from rioxarray.merge import merge_arrays
 import re
-from datetime import datetime
+import subprocess
 import time
-import csv
+from datetime import datetime
+import geopandas as gpd
+
 import hidrocl_paths as hcl
-from math import ceil
+import hidrocl
+
 
 # path to files
 main_path = hcl.imerg_path # path with modis data
@@ -41,39 +43,19 @@ rscript_path = hcl.rscript_path
 imergDailyMean = hcl.imergDailyMean
 PreparingPackages = hcl.PreparingPackages
 
-# set up
-home = str(Path.home())
-temporal_folder = os.path.join(home,'tempHidroCL')
-
 # check is R libraries are installed
 stats_file = subprocess.call([rscript_path, "--vanilla", PreparingPackages])
 
-# Check or create temporal folder
-if os.path.exists(temporal_folder):
-    print(f'Checking temporary folder {temporal_folder}')
-    temp_files = os.listdir(temporal_folder)
-    print(f'Found {len(temp_files)} files')
-else:
-    os.makedirs(temporal_folder)
-    print(f'Temporary folder {temporal_folder} not found, creating it')
+# set temporal folder in user's home folder
+temporal_folder = hidrocl.temp_folder()
 
 polys = gpd.read_file(polys_path) # for getting gauge_id values
 gauges = polys.gauge_id.tolist()
 
-# Check or create database    
-if os.path.exists(database_path):
-    print('Database found, using ' + database_path)
-    with open(database_path, 'r') as the_file:
-        imerg_in_db = [row[0] for row in csv.reader(the_file,delimiter=',')]
-else:
-    print('Database not found, creating it for ' + database_path)
-    header_line = [str(s) for s in gauges]
-    header_line.insert(0,'imerg_id')
-    header_line.insert(1,'date')
-    header_line  = ','.join(header_line) + '\n'
-    with open(database_path,'w') as the_file:
-        the_file.write(header_line)
-    imerg_in_db = ['imerg_id']
+# Check or create nbr database
+imerg_in_db = hidrocl.database_check(db_path = database_path,
+    id_name = 'imerg_id',
+    catchment_names = gauges)
     
 raw_files = [value for value in os.listdir(main_path) if '.HDF5' in value]
 raw_ids = [value.split('.')[4].split('-')[0] for value in raw_files]
@@ -102,24 +84,11 @@ if len(raw_files) >= 1:
                                  file_id,
                                  result_file])
 
-                with open(result_file) as csv_file:
-                    csvreader = csv.reader(csv_file, delimiter=',')
-                    gauge_id_result = []
-                    imerg_mean_result = []    
-                    for row in csvreader:  
-                            gauge_id_result.append(row[0])
-                            imerg_mean_result.append(row[1])
-                gauge_id_result = [int(value) for value in gauge_id_result[1:]]
-                imerg_mean_result = [str(ceil(float(value))) for value in imerg_mean_result[1:]]
-                
-                if(gauges == gauge_id_result):
-                    imerg_mean_result.insert(0,file_id)
-                    imerg_mean_result.insert(1,file_date)
-                    data_line  = ','.join(imerg_mean_result) + '\n'
-                    with open(database_path,'a') as the_file:
-                                the_file.write(data_line)
-                else:
-                    print('Inconsistencies with gauge ids!')
+                hidrocl.write_line(db_path = database_path,
+                    result = result_file,
+                    catchment_names = gauges,
+                    file_id = file_id,
+                    file_date = file_date)
 
                 os.remove(result_file)
                 end = time.time()

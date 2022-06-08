@@ -5,7 +5,7 @@
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -23,14 +23,14 @@ import os
 import rioxarray as rioxr
 from rioxarray.merge import merge_arrays
 import re
-from pathlib import Path
 import subprocess
 import time
 from datetime import datetime
-import csv
 import geopandas as gpd
+
 import hidrocl_paths as hcl
-from math import ceil
+import hidrocl
+
 
 # path to files
 main_path = hcl.mod13q1_path # path with modis data
@@ -43,42 +43,23 @@ rscript_path = hcl.rscript_path
 WeightedMeanExtraction = hcl.WeightedMeanExtraction
 PreparingPackages = hcl.PreparingPackages
 
-# set up
-home = str(Path.home())
-temporal_folder = os.path.join(home,'tempHidroCL')
-
 # check is R libraries are installed
 stats_file = subprocess.call([rscript_path, "--vanilla", PreparingPackages])
 
-# Check or create temporal folder
-if os.path.exists(temporal_folder):
-    print(f'Checking temporary folder {temporal_folder}')
-    temp_files = os.listdir(temporal_folder)
-    print(f'Found {len(temp_files)} files')
-else:
-    os.makedirs(temporal_folder)
-    print(f'Temporary folder {temporal_folder} not found, creating it')
+# set temporal folder in user's home folder
+temporal_folder = hidrocl.temp_folder()
 
 polys = gpd.read_file(polys_path) # for getting gauge_id values
 gauges = polys.gauge_id.tolist()
 
-# Check or create ndvi database    
-if os.path.exists(database_ndvi):
-    print('NDVI database found, using ' + database_ndvi)
-    with open(database_ndvi, 'r') as the_file:
-        modis_in_db = [row[0] for row in csv.reader(the_file,delimiter=',')]
-else:
-    print('NDVI database not found, creating it for ' + database_ndvi)
-    header_line = [str(s) for s in gauges]
-    header_line.insert(0,'modis_id')
-    header_line.insert(1,'date')
-    header_line  = ','.join(header_line) + '\n'
-    with open(database_ndvi,'w') as the_file:
-        the_file.write(header_line)
-    modis_in_db = ['modis_id']
+# Check or create evi database
+modis_in_db = hidrocl.database_check(db_path = database_ndvi,
+    id_name = 'modis_id',
+    catchment_names = gauges)
     
 raw_files = [value for value in os.listdir(main_path) if '.hdf' in value]
 raw_ids = [value.split('.')[1] for value in raw_files]
+
 if len(raw_files) >= 1:
     files_id = []
     for raw_id in raw_ids:
@@ -116,26 +97,11 @@ if len(raw_files) >= 1:
                                  temporal_raster_ndvi,
                                  result_ndvi])
 
-                with open(result_ndvi) as csv_file:
-                    csvreader = csv.reader(csv_file, delimiter=',')
-                    gauge_id_result = []
-                    index_mean_result = []    
-                    for row in csvreader:  
-                            gauge_id_result.append(row[0])
-                            index_mean_result.append(row[1])
-                gauge_id_result = [int(value) for value in gauge_id_result[1:]]
-                index_mean_result = [str(ceil(float(value))) for value in index_mean_result[1:]]
-                
-                if(gauges == gauge_id_result):
-                    index_mean_result.insert(0,file_id)
-                    index_mean_result.insert(1,file_date)
-                    data_line  = ','.join(index_mean_result) + '\n'
-                    with open(database_ndvi,'a') as the_file:
-                                the_file.write(data_line)
-                else:
-                    print('Inconsistencies with gauge ids!')
-
-                del data_line
+                hidrocl.write_line(db_path = database_ndvi,
+                    result = result_ndvi,
+                    catchment_names = gauges,
+                    file_id = file_id,
+                    file_date = file_date)
 
                 os.remove(result_ndvi)
                 os.remove(temporal_raster_ndvi)
