@@ -35,7 +35,7 @@ earthdata_products = {
     'lulc':'MCD12Q1',
     'et0':'MOD16A2',
     'snow':'MOD10A2',
-    'precipitation':'GPM_3IMERGHH',
+    'precipitation':'GPM_3IMERGHHL',
     'landdata':'GLDAS_NOAH025_3H',
 }
 
