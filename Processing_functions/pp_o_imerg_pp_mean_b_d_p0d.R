@@ -18,7 +18,7 @@ pth <- f_args[2] # raster for extraction
 ptt <- f_args[3] # output file
 out <- f_args[4] # output file
 
-sfv <- sf::st_read(sfv)
+sfv <- sf::st_read(sfv, quiet = TRUE)
 
 rfiles <- list.files(path = pth, pattern = ptt, full.names = T)
 
