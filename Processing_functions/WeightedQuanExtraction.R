@@ -10,18 +10,21 @@
 # usage as low as possible. Be aware than the field used for appending
 # ID column to value column here is `gauge_id`
 
-options(warn=-1)
+options(warn = -1)
 
-f_args = commandArgs(trailingOnly=TRUE)
+f_args <- commandArgs(trailingOnly = TRUE)
 sf <- f_args[1] # polygon for extraction
 r <- f_args[2] # raster for extraction
 out <- f_args[3] # output file
 
-result <- try({exactextractr::exact_extract(x = terra::rast(r),
+result <- try({
+    exactextractr::exact_extract(x = terra::rast(r),
                                             y = sf::read_sf(sf),
-                                            fun = 'quantiles',
-                                            quantiles = c(10,25,75,90),
-                                            append_cols = 'gauge_id',
-                                            progress = F)}, silent = TRUE)
+                                            fun = "quantile",
+                                            quantiles = c(0.1,
+                                            0.25, 0.5, 0.75, 0.9),
+                                            append_cols = "gauge_id",
+                                            progress = F)
+                                            }, silent = TRUE)
 terra::tmpFiles(remove = T)
-write.table(x = result,file = out,sep = ',', row.names = F)
+write.table(x = result, file = out, sep = ",", row.names = F)
