@@ -77,12 +77,12 @@ if len(raw_files) >= 1:
                 file_date = datetime.strptime(file_id, 'A%Y%j').strftime('%Y-%m-%d')
                 ndvi_single = []
                 for selected_file in selected_files:
-                    with rioxr.open_rasterio(os.path.join(main_path,selected_file)) as raster:
+                    with rioxr.open_rasterio(os.path.join(main_path,selected_file), masked=True) as raster:
                         ndvi_single.append(getattr(raster,'250m 16 days NDVI'))
 
                 ndvi_mosaic = merge_arrays(ndvi_single)
 
-                ndvi_mosaic = (ndvi_mosaic * 0.1).astype('int16')
+                ndvi_mosaic = ndvi_mosaic * 0.1
 
                 temporal_raster_ndvi = os.path.join(temporal_folder,'ndvi_'+file_id+'.tif')
                 

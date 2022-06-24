@@ -77,7 +77,7 @@ if len(raw_files) >= 1:
                 file_date = datetime.strptime(file_id, 'A%Y%j').strftime('%Y-%m-%d')
                 nbr_single = []
                 for selected_file in selected_files:
-                    with rioxr.open_rasterio(os.path.join(main_path,selected_file)) as raster:
+                    with rioxr.open_rasterio(os.path.join(main_path,selected_file), masked=True) as raster:
                         NIR = getattr(raster,'250m 16 days NIR reflectance')
                         MIR = getattr(raster,'250m 16 days MIR reflectance')
                         nbr_single.append((NIR-MIR)/(NIR+MIR))
@@ -85,7 +85,7 @@ if len(raw_files) >= 1:
                 nbr_mosaic = merge_arrays(nbr_single)
                 nbr_mosaic = nbr_mosaic.where((nbr_mosaic <= 1) & (nbr_mosaic >= -1))
                 nbr_mosaic = nbr_mosaic.where(nbr_mosaic != nbr_mosaic.rio.nodata)
-                nbr_mosaic = (nbr_mosaic * 1000).astype('int16')
+                nbr_mosaic = nbr_mosaic * 1000
 
                 temporal_raster_nbr = os.path.join(temporal_folder,'nbr_'+file_id+'.tif')
                 nbr_mosaic.rio.to_raster(temporal_raster_nbr, compress='LZW')

@@ -77,12 +77,12 @@ if len(raw_files) >= 1:
                 file_date = datetime.strptime(file_id, 'A%Y%j').strftime('%Y-%m-%d')
                 evi_single = []
                 for selected_file in selected_files:
-                    with rioxr.open_rasterio(os.path.join(main_path,selected_file)) as raster:
+                    with rioxr.open_rasterio(os.path.join(main_path,selected_file),masked=True) as raster:
                         evi_single.append(getattr(raster,'250m 16 days EVI'))
 
                 evi_mosaic = merge_arrays(evi_single)
 
-                evi_mosaic = (evi_mosaic * 0.1).astype('int16')
+                evi_mosaic = evi_mosaic * 0.1
 
                 temporal_raster_evi = os.path.join(temporal_folder,'evi_'+file_id+'.tif')
                 

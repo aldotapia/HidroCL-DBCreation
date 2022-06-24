@@ -84,10 +84,10 @@ if len(raw_files) >= 1:
                 file_date = datetime.strptime(file_id, 'A%Y%j').strftime('%Y-%m-%d')
                 raster_single = []
                 for selected_file in selected_files:
-                    with rioxr.open_rasterio(os.path.join(main_path,selected_file)) as raster:
+                    with rioxr.open_rasterio(os.path.join(main_path,selected_file),masked=True) as raster:
                         raster_single.append(getattr(raster,'Maximum_Snow_Extent'))
                 raster_mosaic = merge_arrays(raster_single)
-                raster_mosaic = (raster_mosaic.where(raster_mosaic == 200)/200).fillna(0).astype('int8')
+                raster_mosaic = (raster_mosaic.where(raster_mosaic == 200)/200).fillna(0)
                 temporal_raster = os.path.join(temporal_folder,'snow_'+file_id+'.tif')
                 raster_mosaic.rio.to_raster(temporal_raster, compress='LZW')
                 result_n_file = os.path.join(temporal_folder,'snow_n_'+file_id+'.csv')
