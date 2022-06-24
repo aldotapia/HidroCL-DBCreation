@@ -52,7 +52,7 @@ temporal_folder = hidrocl.temp_folder()
 polys = gpd.read_file(polys_path) # for getting gauge_id values
 gauges = polys.gauge_id.tolist()
 
-# Check or create evi database
+# Check or create ndvi database
 modis_in_db = hidrocl.database_check(db_path = database_ndvi,
     id_name = 'modis_id',
     catchment_names = gauges)
