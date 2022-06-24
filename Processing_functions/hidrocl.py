@@ -61,7 +61,7 @@ def database_check(db_path, id_name, catchment_names):
 
     return(ids_in_db)
 
-def write_line(db_path, result, catchment_names, file_id, file_date):
+def write_line(db_path, result, catchment_names, file_id, file_date, nrow = 1):
     """Write line in dabatabase"""
 
     with open(result) as csv_file:
@@ -70,9 +70,9 @@ def write_line(db_path, result, catchment_names, file_id, file_date):
         value_result = []
         for row in csvreader:
                 gauge_id_result.append(row[0])
-                value_result.append(row[1])
+                value_result.append(row[nrow])
     gauge_id_result = [int(value) for value in gauge_id_result[1:]]
-    value_result = [str(ceil(float(value))) for value in value_result[1:]]
+    value_result = [str(ceil(float(value))) if value.replace('.','',1).isdigit() else 'NA' for value in value_result[1:] if value]
     
     if(catchment_names == gauge_id_result):
         value_result.insert(0,file_id)
