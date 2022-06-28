@@ -23,6 +23,7 @@ from pathlib import Path
 import os
 import csv
 from math import ceil
+import re
 
 
 def temp_folder():
@@ -82,3 +83,23 @@ def write_line(db_path, result, catchment_names, file_id, file_date, nrow = 1):
                     the_file.write(data_line)
     else:
         print('Inconsistencies with gauge ids!')
+
+def remove_duplicates(main_path):
+    """Remove duplicate hdf5 files from folder"""
+    files = os.listdir(main_path)
+    raw_files = [value for value in os.listdir(main_path) if '.hdf' in value]
+    raw_ids = [value.split('.')[1] for value in raw_files]
+    files_id = []
+    for raw_id in raw_ids:
+        if raw_id not in files_id:
+            files_id.append(raw_id)
+    files_id.sort()
+    for file_id in files_id:
+        r = re.compile('.*'+file_id+'.*')
+        selected_files = list(filter(r.match, raw_files))
+        if(len(selected_files)>9):
+            print(f'More than 9 files for {file_id}')
+            print(selected_files)
+            """waiting a real case"""
+        else:
+            print(f'{len(selected_files)} files for {file_id}')
