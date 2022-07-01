@@ -23,7 +23,6 @@ import wget
 import ftplib
 import os
 import gzip, shutil
-import xarray as xr
 
 import hidrocl_paths
 
