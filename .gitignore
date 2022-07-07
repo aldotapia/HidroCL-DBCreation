@@ -19,3 +19,4 @@ Processing_functions/__pycache__/hidrocl_paths.cpython-310.pyc
 .vscode/settings.json
 DownloadFunctions/persiann_download.py
 HidroCL-DBCreation.code-workspace
+hidrocl_conda.yaml
