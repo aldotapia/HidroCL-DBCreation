@@ -60,6 +60,10 @@ while True:
         break
     except:
         print('FTP connection failed. Trying again in 5 seconds...')
+        ftp.close()
         time.sleep(5)
+        ftp = ftplib.FTP(ftp_server)
+        ftp.login()
+        ftp.cwd(ftp_path)
         continue
 ftp.close()
