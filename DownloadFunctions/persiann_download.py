@@ -32,20 +32,35 @@ product_path = hidrocl_paths.persiann
 ftp_server = 'persiann.eng.uci.edu'
 ftp_path = 'CHRSdata/PCCSCDR/daily'
 
-ftp = ftplib.FTP(ftp_server)
-ftp.login()
-ftp.cwd(ftp_path)
+while True:
+    try:
+        ftp = ftplib.FTP(ftp_server)
+        ftp.login()
+        ftp.cwd(ftp_path)
+        break
+    except:
+        print('FTP connection failed. Trying again in 5 seconds...')
+        time.sleep(5)
+        continue
+
 dir_list = []
 ftp.dir(dir_list.append)
 files_list = [value.split(' ')[-1] for value in dir_list if 'bin' in value]
 files_list = [value for value in files_list if value.split('.gz')[0] not in os.listdir(product_path)]
 
-for file in files_list:
-    file_link = os.path.join('ftp://',ftp_server,ftp_path,file)
-    file_path = os.path.join(product_path,file)
-    print(f'\nDownloading {file}')
-    wget.download(file_link, file_path)
-    with gzip.open(file_path, 'r') as f_in, open(file_path.split('.gz')[0], 'wb') as f_out:
-        shutil.copyfileobj(f_in, f_out)
-    os.remove(file_path)
+while True:
+    try:
+        for file_name in files_list:
+            print(f'Downloading {file_name}')
+            wget.download(f'ftp://{ftp_server}/{ftp_path}/{file_name}', out=product_path)
+            print(f'Unzipping {file_name}')
+            with gzip.open(f'{product_path}/{file_name}', 'rb') as f_in:
+                with open(f'{product_path}/{file_name.split(".gz")[0]}', 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            os.remove(f'{product_path}/{file_name}')
+        break
+    except:
+        print('FTP connection failed. Trying again in 5 seconds...')
+        time.sleep(5)
+        continue
 ftp.close()
