@@ -23,6 +23,7 @@ import wget
 import ftplib
 import os
 import gzip, shutil
+import time
 
 import hidrocl_paths
 

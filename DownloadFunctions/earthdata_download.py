@@ -30,6 +30,7 @@ grids = ['h13v14','h14v14','h12v13','h13v13','h11v12',
     'h12v12','h11v11','h12v11','h11v10']
 
 earthdata_products = {
+    'reflectance':'MOD09A1',
     'vegetation':'MOD13Q1',
     'lai':'MCD15A2H',
     'albedo':'MCD43A3',
@@ -41,6 +42,7 @@ earthdata_products = {
 }
 
 earthdata_platform = {
+    'reflectance':'MODIS',
     'vegetation':'modis',
     'lai':'modis',
     'albedo':'modis',
@@ -52,6 +54,7 @@ earthdata_platform = {
 }
 
 earthdata_version = {
+    'reflectance':'061',
     'vegetation':'061',
     'lai':'006',
     'albedo':'061',
@@ -63,6 +66,7 @@ earthdata_version = {
 }
 
 earthdata_file_extension = {
+    'reflectance':'hdf',
     'vegetation':'.hdf',
     'lai':'.hdf',
     'albedo':'.hdf',
@@ -89,7 +93,7 @@ if __name__ == '__main__':
     is either 2000-01-01 or the most recent date
     """, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('type',help = 'Product type',
-        choices = ['vegetation','lai','albedo','lulc','et0',
+        choices = ['reflectance','vegetation','lai','albedo','lulc','et0',
         'snow','precipitation','landdata'])
     parser.add_argument('path',
         help = 'Path for downloaded products. Do not include product name')

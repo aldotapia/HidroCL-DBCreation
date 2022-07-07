@@ -22,4 +22,4 @@ class HidroCLVariable:
         self.product = product
     
     def __str__(self):
-        return f'Variable {name}. Records:'
+        return f'Variable {self.name}. Records:'
