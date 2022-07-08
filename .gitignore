@@ -4,8 +4,6 @@ Processing_functions/.DS_Store
 paths_credentials_etc
 HidroCL.sublime-project
 HidroCL.sublime-workspace
-Processing_functions/.ipynb_checkpoints/snow_processing-checkpoint.py
-*.ipynb
 Processing_functions/hidrocl_paths.py
 Processing_functions/hidrocl_paths.R
 Processing_functions/.Rhistory
@@ -20,3 +18,7 @@ Processing_functions/__pycache__/hidrocl_paths.cpython-310.pyc
 DownloadFunctions/persiann_download.py
 HidroCL-DBCreation.code-workspace
 hidrocl_conda.yaml
+Class tests/__pycache__/hidrocl_paths.cpython-310.pyc
+Class tests/hidrocl_paths.py
+Class tests/.ipynb_checkpoints/UsageExample-checkpoint.ipynb
+Class tests/__pycache__/hidroclabc.cpython-310.pyc
