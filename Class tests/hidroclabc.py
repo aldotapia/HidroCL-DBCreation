@@ -11,10 +11,16 @@ The class should:
 '''
 
 # import collections
+import re
 import os
+import time
+import subprocess
 import pandas as pd
+from pathlib import Path
 import rioxarray as rioxr
+from datetime import datetime
 from rioxarray.merge import merge_arrays
+from zmq import EVENT_CLOSE_FAILED
 
 import hidrocl_paths as hcl
 
@@ -81,14 +87,38 @@ def mosaic_raster(raster_list,layer):
     raster_single = []
 
     for raster in raster_list:
-        with rioxr.open(raster, masked = True) as src:
+        with rioxr.open_rasterio(raster, masked = True) as src:
             raster_single.append(getattr(src, layer))
 
     raster_mosaic = merge_arrays(raster_single)
     return raster_mosaic
 
-class mod10a2extractor:
-    '''class to extract mod10a2 to hidrocl variables
+def temp_folder():
+    '''set temporary folder for paths'''
+    home = str(Path.home()) # get user's home path
+    temporal_folder = os.path.join(home,'tempHidroCL')
+
+    # Check or create temporal folder
+    if os.path.exists(temporal_folder):
+        print(f'Checking temporary folder {temporal_folder}')
+        temp_files = os.listdir(temporal_folder)
+        print(f'Found {len(temp_files)} files')
+    else:
+        os.makedirs(temporal_folder)
+        print(f'Temporary folder {temporal_folder} not found, creating it')
+    return temporal_folder
+
+def run_WeightedMeanExtraction(temporal_raster,result_file):
+    '''run WeightedMeanExtraction'''
+    subprocess.call([hcl.rscript_path,
+                     "--vanilla",
+                     hcl.WeightedMeanExtraction,
+                     hcl.hidrocl_sinusoidal,
+                     temporal_raster,
+                     result_file])
+
+class mod13q1extractor:
+    '''class to extract MOD13Q1 to hidrocl variables
     
     Parameters:
     ndvi (HidroCLVariable): ndvi variable
@@ -100,8 +130,8 @@ class mod10a2extractor:
             self.ndvi = ndvi
             self.evi = evi
             self.nbr = nbr
-            self.productname = 'MODIS MOD10A2 Version 0.61'
-            self.productpath = hcl.mod10a2_path
+            self.productname = 'MODIS MOD13Q1 Version 0.61'
+            self.productpath = hcl.mod13q1_path
             self.common_elements = self.compare_indatabase()
             self.product_files = self.read_product_files()
             self.product_ids = self.get_product_ids()
@@ -201,4 +231,37 @@ NBR database path: {self.nbr.database}
         for scene in self.all_scenes:
             if scene not in self.common_elements:
                 scenes_out_of_db.append(scene)
-        return scenes_out_of_db    
+        return scenes_out_of_db
+
+    def run_extraction(self, limit = None):
+        '''run scenes to process'''
+
+        tempfolder = temp_folder()
+
+        scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
+
+        if limit is not None:
+            scenes_to_process = self.scenes_to_process[:limit]
+        else:
+            scenes_to_process = self.scenes_to_process
+
+        for scene in scenes_to_process:
+            if scene not in self.ndvi.indatabase:
+                r = re.compile('.*'+scene+'.*')
+                selected_files = list(filter(r.match, scenes_path))
+                print(selected_files)
+                start = time.time()
+                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                mos = mosaic_raster(selected_files,'250m 16 days NDVI')
+                mos = mos * 0.1
+                temporal_raster = os.path.join(tempfolder,'ndvi_'+scene+'.tif')
+                mos.rio.to_raster(temporal_raster, compress='LZW')
+                end = time.time()
+                time_dif = str(round(end - start))
+                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                #run_WeightedMeanExtraction(temporal_raster,result_file)
+            #if scene not in self.evi.indatabase:
+            #    print(f'scene {scene} not in {self.evi.database}')
+            #if scene not in self.nbr.indatabase:
+            #    print(f'scene {scene} not in {self.nbr.database}')        
