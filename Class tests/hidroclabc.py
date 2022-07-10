@@ -6,16 +6,20 @@ The class should:
  - create a database / Done
  - load database / Done
  - check current observations in the database / Done
- - process data stored on nas
- - write data to database
+ - process data stored on nas / Done
+ - write data to database / Done
+ - Products included:
+   - MOD13Q1
 '''
 
 # import collections
 import re
 import os
+import csv
 import time
 import subprocess
 import pandas as pd
+from math import ceil
 from pathlib import Path
 import rioxarray as rioxr
 from datetime import datetime
@@ -36,7 +40,7 @@ class HidroCLVariable:
     def __init__(self,name,database):
         self.name = name
         self.database = database
-        self.indatabase =  None
+        self.indatabase =  ''
         self.observations =  None
         self.catchment_names = None
         self.checkdatabase()
@@ -67,7 +71,7 @@ Database path: {self.database}.
             self.observations.date=pd.to_datetime(self.observations.date, format = '%Y-%m-%d')
             self.observations.set_index(['date'], inplace = True)
             self.indatabase = self.observations[self.observations.columns[0]].values.tolist()
-            self.catchment_names = self.observations.columns[2:].tolist()
+            self.catchment_names = self.observations.columns[1:].tolist()
             print('Observations and catchment names added!')
         else: # create db
             if self.catchment_names is None:
@@ -83,7 +87,7 @@ Database path: {self.database}.
                 print('Database created!')
 
 def mosaic_raster(raster_list,layer):
-    '''function to mosaic ndvi files with rioxarray library'''
+    '''function to mosaic files with rioxarray library'''
     raster_single = []
 
     for raster in raster_list:
@@ -91,6 +95,21 @@ def mosaic_raster(raster_list,layer):
             raster_single.append(getattr(src, layer))
 
     raster_mosaic = merge_arrays(raster_single)
+    return raster_mosaic
+
+def mosaic_nd_raster(raster_list,layer1, layer2):
+    '''function to compute normalized difference and mosaic  files with rioxarray library'''
+    raster_single = []
+
+    for raster in raster_list:
+        with rioxr.open_rasterio(raster, masked = True) as src:
+            lyr1 = getattr(src,layer1)
+            lyr2 = getattr(src,layer2)
+            raster_single.append((lyr1-lyr2)/(lyr1+lyr2))
+
+    raster_mosaic = merge_arrays(raster_single)
+    raster_mosaic = raster_mosaic.where((raster_mosaic <= 1) & (raster_mosaic >= -1))
+    raster_mosaic = raster_mosaic.where(raster_mosaic != raster_mosaic.rio.nodata)
     return raster_mosaic
 
 def temp_folder():
@@ -116,6 +135,32 @@ def run_WeightedMeanExtraction(temporal_raster,result_file):
                      hcl.hidrocl_sinusoidal,
                      temporal_raster,
                      result_file])
+
+def write_line(database, result, catchment_names, file_id, file_date, nrow = 1):
+    """Write line in dabatabase"""
+    with open(result) as csv_file:
+        csvreader = csv.reader(csv_file, delimiter=',')
+        gauge_id_result = []
+        value_result = []
+        for row in csvreader:
+                gauge_id_result.append(row[0])
+                value_result.append(row[nrow])
+    gauge_id_result = [value for value in gauge_id_result[1:]]
+    value_result = [str(ceil(float(value))) if value.replace('.','',1).isdigit() else 'NA' for value in value_result[1:] if value]
+    
+    if(catchment_names == gauge_id_result):
+        value_result.insert(0,file_id)
+        value_result.insert(1,file_date)
+        data_line  = ','.join(value_result) + '\n'
+        with open(database,'a') as the_file:
+                    the_file.write(data_line)
+    else:
+        print('Inconsistencies with gauge ids!')
+
+def write_log(log_file,file_id,currenttime,time_dif,database):
+    '''write log file'''
+    with open(log_file, 'a') as txt_file:
+        txt_file.write(f'ID {file_id}. Date: {currenttime}. Process time: {time_dif} s. Database: {database}. \n')        
 
 class mod13q1extractor:
     '''class to extract MOD13Q1 to hidrocl variables
@@ -162,14 +207,20 @@ NBR database path: {self.nbr.database}
     
     def order_indatabase(self):
         '''order indatabase attributes'''
-        self.ndvi.indatabase.sort()
-        self.evi.indatabase.sort()
-        self.nbr.indatabase.sort()
+        if len(self.ndvi.indatabase) > 0:
+            self.ndvi.indatabase.sort()
+        if len(self.evi.indatabase) > 0:
+            self.evi.indatabase.sort()
+        if len(self.nbr.indatabase) > 0:
+            self.nbr.indatabase.sort()
 
     def compare_indatabase(self):
         '''compare indatabase and return elements that are equal'''
         self.order_indatabase()
-        common_elements = set(self.ndvi.indatabase) & set(self.evi.indatabase) & set(self.nbr.indatabase)
+        if len(self.ndvi.indatabase) > 0 or len(self.evi.indatabase) > 0 or len(self.nbr.indatabase) > 0:
+            common_elements = list(set(self.ndvi.indatabase) & set(self.evi.indatabase) & set(self.nbr.indatabase))
+        else:
+            common_elements = []
         return common_elements
 
     def read_product_files(self):
@@ -247,21 +298,62 @@ NBR database path: {self.nbr.database}
 
         for scene in scenes_to_process:
             if scene not in self.ndvi.indatabase:
+                print(f'Processing scene {scene} for ndvi')
                 r = re.compile('.*'+scene+'.*')
                 selected_files = list(filter(r.match, scenes_path))
-                print(selected_files)
                 start = time.time()
                 file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
                 mos = mosaic_raster(selected_files,'250m 16 days NDVI')
                 mos = mos * 0.1
                 temporal_raster = os.path.join(tempfolder,'ndvi_'+scene+'.tif')
+                result_file = os.path.join(tempfolder,'ndvi_'+scene+'.csv')
                 mos.rio.to_raster(temporal_raster, compress='LZW')
+                run_WeightedMeanExtraction(temporal_raster,result_file)
+                write_line(self.ndvi.database, result_file, self.ndvi.catchment_names, scene, file_date, nrow = 1)
                 end = time.time()
                 time_dif = str(round(end - start))
                 currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
-                #run_WeightedMeanExtraction(temporal_raster,result_file)
-            #if scene not in self.evi.indatabase:
-            #    print(f'scene {scene} not in {self.evi.database}')
-            #if scene not in self.nbr.indatabase:
-            #    print(f'scene {scene} not in {self.nbr.database}')        
+                write_log(hcl.log_veg_o_modis_ndvi_mean,scene,currenttime,time_dif,self.ndvi.database)
+                os.remove(temporal_raster)
+                os.remove(result_file)
+            if scene not in self.evi.indatabase:
+                print(f'Processing scene {scene} for evi')
+                r = re.compile('.*'+scene+'.*')
+                selected_files = list(filter(r.match, scenes_path))
+                start = time.time()
+                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                mos = mosaic_raster(selected_files,'250m 16 days EVI')
+                mos = mos * 0.1
+                temporal_raster = os.path.join(tempfolder,'evi_'+scene+'.tif')
+                result_file = os.path.join(tempfolder,'evi_'+scene+'.csv')
+                mos.rio.to_raster(temporal_raster, compress='LZW')
+                run_WeightedMeanExtraction(temporal_raster,result_file)
+                write_line(self.evi.database, result_file, self.evi.catchment_names, scene, file_date, nrow = 1)
+                end = time.time()
+                time_dif = str(round(end - start))
+                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                write_log(hcl.log_veg_o_modis_evi_mean,scene,currenttime,time_dif,self.evi.database)
+                os.remove(temporal_raster)
+                os.remove(result_file)
+            if scene not in self.nbr.indatabase:
+                print(f'Processing scene {scene} for nbr')
+                r = re.compile('.*'+scene+'.*')
+                selected_files = list(filter(r.match, scenes_path))
+                start = time.time()
+                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                mos = mosaic_nd_raster(selected_files,'250m 16 days NIR reflectance', '250m 16 days MIR reflectance')
+                mos = mos * 1000
+                temporal_raster = os.path.join(tempfolder,'nbr_'+scene+'.tif')
+                result_file = os.path.join(tempfolder,'nbr_'+scene+'.csv')
+                mos.rio.to_raster(temporal_raster, compress='LZW')
+                run_WeightedMeanExtraction(temporal_raster,result_file)
+                write_line(self.nbr.database, result_file, self.nbr.catchment_names, scene, file_date, nrow = 1)
+                end = time.time()
+                time_dif = str(round(end - start))
+                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                write_log(hcl.log_veg_o_int_nbr_mean,scene,currenttime,time_dif,self.nbr.database)
+                os.remove(temporal_raster)
+                os.remove(result_file)
