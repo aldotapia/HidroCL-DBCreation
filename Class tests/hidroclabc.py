@@ -10,6 +10,8 @@ The class should:
  - write data to database / Done
  - Products included:
    - MOD13Q1
+ - to do:
+    - Database maintener (delete wrong observations)  
 '''
 
 # import collections
@@ -98,17 +100,18 @@ def mosaic_raster(raster_list,layer):
     return raster_mosaic
 
 def mosaic_nd_raster(raster_list,layer1, layer2):
-    '''function to compute normalized difference and mosaic  files with rioxarray library'''
+    '''function to compute normalized difference and mosaic files with rioxarray library'''
     raster_single = []
 
     for raster in raster_list:
         with rioxr.open_rasterio(raster, masked = True) as src:
             lyr1 = getattr(src,layer1)
             lyr2 = getattr(src,layer2)
-            raster_single.append((lyr1-lyr2)/(lyr1+lyr2))
-
+            nd = 1000 * (lyr1 - lyr2) / (lyr1 + lyr2)
+            nd.rio.set_nodata(-32768)
+            raster_single.append(nd)
     raster_mosaic = merge_arrays(raster_single)
-    raster_mosaic = raster_mosaic.where((raster_mosaic <= 1) & (raster_mosaic >= -1))
+    raster_mosaic = raster_mosaic.where((raster_mosaic <= 1000) & (raster_mosaic >= -1000))
     raster_mosaic = raster_mosaic.where(raster_mosaic != raster_mosaic.rio.nodata)
     return raster_mosaic
 
@@ -344,10 +347,9 @@ NBR database path: {self.nbr.database}
                 start = time.time()
                 file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
                 mos = mosaic_nd_raster(selected_files,'250m 16 days NIR reflectance', '250m 16 days MIR reflectance')
-                mos = mos * 1000
                 temporal_raster = os.path.join(tempfolder,'nbr_'+scene+'.tif')
                 result_file = os.path.join(tempfolder,'nbr_'+scene+'.csv')
-                mos.rio.to_raster(temporal_raster, compress='LZW')
+                mos.rio.to_raster(temporal_raster, compress='LZW', dtype = 'int16')
                 run_WeightedMeanExtraction(temporal_raster,result_file)
                 write_line(self.nbr.database, result_file, self.nbr.catchment_names, scene, file_date, nrow = 1)
                 end = time.time()
