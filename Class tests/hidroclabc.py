@@ -26,7 +26,6 @@ from pathlib import Path
 import rioxarray as rioxr
 from datetime import datetime
 from rioxarray.merge import merge_arrays
-from zmq import EVENT_CLOSE_FAILED
 
 import hidrocl_paths as hcl
 
