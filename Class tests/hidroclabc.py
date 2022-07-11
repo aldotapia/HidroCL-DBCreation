@@ -138,6 +138,25 @@ def run_WeightedMeanExtraction(temporal_raster,result_file):
                      temporal_raster,
                      result_file])
 
+def run_WeightedSumExtractionNorth(temporal_raster,result_file):
+    '''run WeightedSumExtraction for north face'''
+    subprocess.call([hcl.rscript_path,
+                     "--vanilla",
+                     hcl.WeightedSumExtraction,
+                     hcl.hidrocl_north,
+                     temporal_raster,
+                     result_file])
+
+def run_WeightedSumExtractionSouth(temporal_raster,result_file):
+    '''run WeightedSumExtraction for South face'''
+    subprocess.call([hcl.rscript_path,
+                     "--vanilla",
+                     hcl.WeightedSumExtraction,
+                     hcl.hidrocl_south,
+                     temporal_raster,
+                     result_file])
+
+
 def write_line(database, result, catchment_names, file_id, file_date, nrow = 1):
     """Write line in dabatabase"""
     with open(result) as csv_file:
@@ -162,7 +181,12 @@ def write_line(database, result, catchment_names, file_id, file_date, nrow = 1):
 def write_log(log_file,file_id,currenttime,time_dif,database):
     '''write log file'''
     with open(log_file, 'a') as txt_file:
-        txt_file.write(f'ID {file_id}. Date: {currenttime}. Process time: {time_dif} s. Database: {database}. \n')        
+        txt_file.write(f'ID {file_id}. Date: {currenttime}. Process time: {time_dif} s. Database: {database}. \n')
+
+def write_log_double(log_file,file_id,currenttime,time_dif,database1,database2):
+    '''write log file for two databases'''
+    with open(log_file, 'a') as txt_file:
+        txt_file.write(f'ID {file_id}. Date: {currenttime}. Process time: {time_dif} s. Databases: {database1}/{database2}. \n')
 
 class mod13q1extractor:
     '''class to extract MOD13Q1 to hidrocl variables
@@ -358,3 +382,161 @@ NBR database path: {self.nbr.database}
                 write_log(hcl.log_veg_o_int_nbr_mean,scene,currenttime,time_dif,self.nbr.database)
                 os.remove(temporal_raster)
                 os.remove(result_file)
+
+class mod10a2extractor:
+    '''class to extract MOD10A2 to hidrocl variables
+    
+    Parameters:
+    nsnow (HidroCLVariable): north face snow
+    ssnow (HidroCLVariable): south face snow'''
+
+    def __init__(self,nsnow,ssnow):
+        if isinstance(nsnow,HidroCLVariable) & isinstance(ssnow,HidroCLVariable):
+            self.nsnow = nsnow
+            self.ssnow = ssnow
+            self.productname = 'MODIS MOD10A2 Version 0.61'
+            self.productpath = hcl.mod10a2_path
+            self.common_elements = self.compare_indatabase()
+            self.product_files = self.read_product_files()
+            self.product_ids = self.get_product_ids()
+            self.all_scenes = self.check_product_files()
+            self.scenes_occurrences = self.count_scenes_occurrences()
+            self.incomplete_scenes = self.get_incomplete_scenes()
+            self.overpopulated_scenes = self.get_overpopulated_scenes()
+            self.complete_scenes = self.get_complete_scenes()
+            self.scenes_to_process = self.get_scenes_out_of_db()
+        else:
+            raise TypeError('nsnow and snow must be HidroCLVariable objects')
+
+    def __repr__(self):
+        return f'Class to extract {self.productname}'
+    def __str__(self):
+        return f'''
+Product: {self.productname}
+
+North face snow records: {len(self.nsnow.indatabase)}.
+North face snow path: {self.nsnow.database}
+
+South face snow records: {len(self.ssnow.indatabase)}.
+South face snow database path: {self.ssnow.database}
+        '''
+    
+    def order_indatabase(self):
+        '''order indatabase attributes'''
+        if len(self.nsnow.indatabase) > 0:
+            self.nsnow.indatabase.sort()
+        if len(self.ssnow.indatabase) > 0:
+            self.ssnow.indatabase.sort()
+        
+
+    def compare_indatabase(self):
+        '''compare indatabase and return elements that are equal'''
+        self.order_indatabase()
+        if len(self.nsnow.indatabase) > 0 or len(self.snow.indatabase) > 0:
+            common_elements = list(set(self.nsnow.indatabase) & set(self.ssnow.indatabase))
+        else:
+            common_elements = []
+        return common_elements
+
+    def read_product_files(self):
+        '''read product files'''
+        return [value for value in os.listdir(self.productpath) if '.hdf' in value]
+
+    def get_product_ids(self):
+        '''get product ids'''
+        product_ids = [value.split('.')[1] for value in self.product_files]
+        return product_ids
+
+    def check_product_files(self):
+        '''extract product ids from product files'''
+        files_id = []
+        for product_id in self.product_ids:
+            if product_id not in files_id:
+                files_id.append(product_id)
+        files_id.sort()
+        return files_id
+    
+    def count_scenes_occurrences(self):
+        '''count self.all_scenes in self.product_ids returning a dictionary'''
+        count_scenes = {}
+        for scene in self.all_scenes:
+            count_scenes[scene] = self.product_ids.count(scene)
+        return count_scenes
+
+    def get_overpopulated_scenes(self):
+        '''get scenes with more than 9 items from self.scenes_occurrences'''
+        overpopulated_scenes = []
+        for scene,occurrences in self.scenes_occurrences.items():
+            if occurrences > 9:
+                overpopulated_scenes.append(scene)
+        return overpopulated_scenes
+
+    def get_incomplete_scenes(self):
+        '''get scenes with less than 9 items from self.scenes_occurrences'''
+        incomplete_scenes = []
+        for scene,occurrences in self.scenes_occurrences.items():
+            if occurrences < 9:
+                incomplete_scenes.append(scene)
+        return incomplete_scenes
+
+    def get_complete_scenes(self):
+        '''get scenes with 9 items from self.scenes_occurrences'''
+        complete_scenes = []
+        for scene,occurrences in self.scenes_occurrences.items():
+            if occurrences == 9:
+                complete_scenes.append(scene)
+        return complete_scenes
+
+    def get_scenes_out_of_db(self):
+        '''compare
+        self.nsnow.indatabase and
+        self.ssnow.indatabase and
+        return scenes that are not in the database'''
+        scenes_out_of_db = []
+        for scene in self.all_scenes:
+            if scene not in self.common_elements:
+                scenes_out_of_db.append(scene)
+        return scenes_out_of_db
+
+    def run_extraction(self, limit = None):
+        '''run scenes to process'''
+
+        tempfolder = temp_folder()
+
+        scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
+
+        if limit is not None:
+            scenes_to_process = self.scenes_to_process[:limit]
+        else:
+            scenes_to_process = self.scenes_to_process
+
+        for scene in scenes_to_process:
+            if scene not in self.nsnow.indatabase or scene not in self.ssnow.indatabase:
+                print(f'Processing scene {scene} for snow processing')
+                r = re.compile('.*'+scene+'.*')
+                selected_files = list(filter(r.match, scenes_path))
+                start = time.time()
+                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                mos = mosaic_raster(selected_files,'Maximum_Snow_Extent')
+                mos = (mos.where(mos == 200)/200).fillna(0)
+                temporal_raster = os.path.join(tempfolder,'snow_'+scene+'.tif')
+                mos.rio.to_raster(temporal_raster, compress='LZW')
+
+                if scene not in self.nsnow.indatabase:
+                    result_file = os.path.join(tempfolder,'nsnow_'+scene+'.csv')
+                    run_WeightedSumExtractionNorth(temporal_raster,result_file)
+                    write_line(self.nsnow.database, result_file, self.nsnow.catchment_names, scene, file_date, nrow = 1)
+                    os.remove(result_file)
+
+                if scene not in self.ssnow.indatabase:    
+                    result_file = os.path.join(tempfolder,'ssnow_'+scene+'.csv')
+                    run_WeightedSumExtractionSouth(temporal_raster,result_file)
+                    write_line(self.ssnow.database, result_file, self.ssnow.catchment_names, scene, file_date, nrow = 1)
+                    os.remove(result_file)
+
+                end = time.time()
+                time_dif = str(round(end - start))
+                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                write_log_double(hcl.log_snw_o_modis_sca_cum,scene,currenttime,time_dif,self.nsnow.database,self.ssnow.database)
+                os.remove(temporal_raster)

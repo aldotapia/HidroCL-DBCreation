@@ -7,4 +7,9 @@ nbr = HidroCLVariable('nbr_temporal', hcl.veg_o_int_nbr_mean_b_d16_p0d)
 
 modext = mod13q1extractor(ndvi,evi,nbr)
 
-modext.run_extraction()
+while True:
+    try:
+        modext.run_extraction()
+    except:
+        continue
+    break
