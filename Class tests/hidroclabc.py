@@ -17,6 +17,7 @@ The class should:
 # import collections
 import re
 import os
+import gc
 import csv
 import time
 import subprocess
@@ -352,6 +353,7 @@ NBR database path: {self.nbr.database}
                         write_log(hcl.log_veg_o_modis_ndvi_mean,scene,currenttime,time_dif,self.ndvi.database)
                         os.remove(temporal_raster)
                         os.remove(result_file)
+                        gc.collect()
                     if scene not in self.evi.indatabase:
                         print(f'Processing scene {scene} for evi')
                         r = re.compile('.*'+scene+'.*')
@@ -372,6 +374,7 @@ NBR database path: {self.nbr.database}
                         write_log(hcl.log_veg_o_modis_evi_mean,scene,currenttime,time_dif,self.evi.database)
                         os.remove(temporal_raster)
                         os.remove(result_file)
+                        gc.collect()
                     if scene not in self.nbr.indatabase:
                         print(f'Processing scene {scene} for nbr')
                         r = re.compile('.*'+scene+'.*')
@@ -391,6 +394,7 @@ NBR database path: {self.nbr.database}
                         write_log(hcl.log_veg_o_int_nbr_mean,scene,currenttime,time_dif,self.nbr.database)
                         os.remove(temporal_raster)
                         os.remove(result_file)
+                        gc.collect()
 
             except:
                 continue
