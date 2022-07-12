@@ -11,7 +11,7 @@ The class should:
  - Products included:
    - MOD13Q1
  - to do:
-    - Database maintener (delete wrong observations)  
+    - Database maintener (delete wrong observations)
 '''
 
 # import collections
@@ -33,7 +33,7 @@ import hidrocl_paths as hcl
 
 class HidroCLVariable:
     '''A class to hold information about a hidrocl variable
-    
+
     Parameters:
     name (str): name of the variable
     database (str): path to the database'''
@@ -48,7 +48,7 @@ class HidroCLVariable:
 
     def __repr__(self):
         return f'Variable: {self.name}. Records: {len(self.indatabase)}'
-    
+
     def __str__(self):
         return f'''
 Variable {self.name}.
@@ -168,7 +168,7 @@ def write_line(database, result, catchment_names, file_id, file_date, nrow = 1):
                 value_result.append(row[nrow])
     gauge_id_result = [value for value in gauge_id_result[1:]]
     value_result = [str(ceil(float(value))) if value.replace('.','',1).isdigit() else 'NA' for value in value_result[1:] if value]
-    
+
     if(catchment_names == gauge_id_result):
         value_result.insert(0,file_id)
         value_result.insert(1,file_date)
@@ -190,7 +190,7 @@ def write_log_double(log_file,file_id,currenttime,time_dif,database1,database2):
 
 class mod13q1extractor:
     '''class to extract MOD13Q1 to hidrocl variables
-    
+
     Parameters:
     ndvi (HidroCLVariable): ndvi variable
     evi (HidroCLVariable): evi variable
@@ -230,7 +230,7 @@ EVI database path: {self.evi.database}
 NBR records: {len(self.nbr.indatabase)}.
 NBR database path: {self.nbr.database}
         '''
-    
+
     def order_indatabase(self):
         '''order indatabase attributes'''
         if len(self.ndvi.indatabase) > 0:
@@ -266,7 +266,7 @@ NBR database path: {self.nbr.database}
                 files_id.append(product_id)
         files_id.sort()
         return files_id
-    
+
     def count_scenes_occurrences(self):
         '''count self.all_scenes in self.product_ids returning a dictionary'''
         count_scenes = {}
@@ -313,79 +313,92 @@ NBR database path: {self.nbr.database}
     def run_extraction(self, limit = None):
         '''run scenes to process'''
 
-        tempfolder = temp_folder()
+        while True:
+            try:
+                self.ndvi.checkdatabase()
+                self.evi.checkdatabase()
+                self.nbr.checkdatabase()
 
-        scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
+                self.common_elements = self.compare_indatabase()
+                self.scenes_to_process = self.get_scenes_out_of_db()
 
-        if limit is not None:
-            scenes_to_process = self.scenes_to_process[:limit]
-        else:
-            scenes_to_process = self.scenes_to_process
+                tempfolder = temp_folder()
 
-        for scene in scenes_to_process:
-            if scene not in self.ndvi.indatabase:
-                print(f'Processing scene {scene} for ndvi')
-                r = re.compile('.*'+scene+'.*')
-                selected_files = list(filter(r.match, scenes_path))
-                start = time.time()
-                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                mos = mosaic_raster(selected_files,'250m 16 days NDVI')
-                mos = mos * 0.1
-                temporal_raster = os.path.join(tempfolder,'ndvi_'+scene+'.tif')
-                result_file = os.path.join(tempfolder,'ndvi_'+scene+'.csv')
-                mos.rio.to_raster(temporal_raster, compress='LZW')
-                run_WeightedMeanExtraction(temporal_raster,result_file)
-                write_line(self.ndvi.database, result_file, self.ndvi.catchment_names, scene, file_date, nrow = 1)
-                end = time.time()
-                time_dif = str(round(end - start))
-                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
-                write_log(hcl.log_veg_o_modis_ndvi_mean,scene,currenttime,time_dif,self.ndvi.database)
-                os.remove(temporal_raster)
-                os.remove(result_file)
-            if scene not in self.evi.indatabase:
-                print(f'Processing scene {scene} for evi')
-                r = re.compile('.*'+scene+'.*')
-                selected_files = list(filter(r.match, scenes_path))
-                start = time.time()
-                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                mos = mosaic_raster(selected_files,'250m 16 days EVI')
-                mos = mos * 0.1
-                temporal_raster = os.path.join(tempfolder,'evi_'+scene+'.tif')
-                result_file = os.path.join(tempfolder,'evi_'+scene+'.csv')
-                mos.rio.to_raster(temporal_raster, compress='LZW')
-                run_WeightedMeanExtraction(temporal_raster,result_file)
-                write_line(self.evi.database, result_file, self.evi.catchment_names, scene, file_date, nrow = 1)
-                end = time.time()
-                time_dif = str(round(end - start))
-                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
-                write_log(hcl.log_veg_o_modis_evi_mean,scene,currenttime,time_dif,self.evi.database)
-                os.remove(temporal_raster)
-                os.remove(result_file)
-            if scene not in self.nbr.indatabase:
-                print(f'Processing scene {scene} for nbr')
-                r = re.compile('.*'+scene+'.*')
-                selected_files = list(filter(r.match, scenes_path))
-                start = time.time()
-                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                mos = mosaic_nd_raster(selected_files,'250m 16 days NIR reflectance', '250m 16 days MIR reflectance')
-                temporal_raster = os.path.join(tempfolder,'nbr_'+scene+'.tif')
-                result_file = os.path.join(tempfolder,'nbr_'+scene+'.csv')
-                mos.rio.to_raster(temporal_raster, compress='LZW', dtype = 'int16')
-                run_WeightedMeanExtraction(temporal_raster,result_file)
-                write_line(self.nbr.database, result_file, self.nbr.catchment_names, scene, file_date, nrow = 1)
-                end = time.time()
-                time_dif = str(round(end - start))
-                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
-                write_log(hcl.log_veg_o_int_nbr_mean,scene,currenttime,time_dif,self.nbr.database)
-                os.remove(temporal_raster)
-                os.remove(result_file)
+                scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
+
+                if limit is not None:
+                    scenes_to_process = self.scenes_to_process[:limit]
+                else:
+                    scenes_to_process = self.scenes_to_process
+
+                for scene in scenes_to_process:
+                    if scene not in self.ndvi.indatabase:
+                        print(f'Processing scene {scene} for ndvi')
+                        r = re.compile('.*'+scene+'.*')
+                        selected_files = list(filter(r.match, scenes_path))
+                        start = time.time()
+                        file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                        mos = mosaic_raster(selected_files,'250m 16 days NDVI')
+                        mos = mos * 0.1
+                        temporal_raster = os.path.join(tempfolder,'ndvi_'+scene+'.tif')
+                        result_file = os.path.join(tempfolder,'ndvi_'+scene+'.csv')
+                        mos.rio.to_raster(temporal_raster, compress='LZW')
+                        run_WeightedMeanExtraction(temporal_raster,result_file)
+                        write_line(self.ndvi.database, result_file, self.ndvi.catchment_names, scene, file_date, nrow = 1)
+                        end = time.time()
+                        time_dif = str(round(end - start))
+                        currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                        print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                        write_log(hcl.log_veg_o_modis_ndvi_mean,scene,currenttime,time_dif,self.ndvi.database)
+                        os.remove(temporal_raster)
+                        os.remove(result_file)
+                    if scene not in self.evi.indatabase:
+                        print(f'Processing scene {scene} for evi')
+                        r = re.compile('.*'+scene+'.*')
+                        selected_files = list(filter(r.match, scenes_path))
+                        start = time.time()
+                        file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                        mos = mosaic_raster(selected_files,'250m 16 days EVI')
+                        mos = mos * 0.1
+                        temporal_raster = os.path.join(tempfolder,'evi_'+scene+'.tif')
+                        result_file = os.path.join(tempfolder,'evi_'+scene+'.csv')
+                        mos.rio.to_raster(temporal_raster, compress='LZW')
+                        run_WeightedMeanExtraction(temporal_raster,result_file)
+                        write_line(self.evi.database, result_file, self.evi.catchment_names, scene, file_date, nrow = 1)
+                        end = time.time()
+                        time_dif = str(round(end - start))
+                        currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                        print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                        write_log(hcl.log_veg_o_modis_evi_mean,scene,currenttime,time_dif,self.evi.database)
+                        os.remove(temporal_raster)
+                        os.remove(result_file)
+                    if scene not in self.nbr.indatabase:
+                        print(f'Processing scene {scene} for nbr')
+                        r = re.compile('.*'+scene+'.*')
+                        selected_files = list(filter(r.match, scenes_path))
+                        start = time.time()
+                        file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                        mos = mosaic_nd_raster(selected_files,'250m 16 days NIR reflectance', '250m 16 days MIR reflectance')
+                        temporal_raster = os.path.join(tempfolder,'nbr_'+scene+'.tif')
+                        result_file = os.path.join(tempfolder,'nbr_'+scene+'.csv')
+                        mos.rio.to_raster(temporal_raster, compress='LZW', dtype = 'int16')
+                        run_WeightedMeanExtraction(temporal_raster,result_file)
+                        write_line(self.nbr.database, result_file, self.nbr.catchment_names, scene, file_date, nrow = 1)
+                        end = time.time()
+                        time_dif = str(round(end - start))
+                        currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                        print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                        write_log(hcl.log_veg_o_int_nbr_mean,scene,currenttime,time_dif,self.nbr.database)
+                        os.remove(temporal_raster)
+                        os.remove(result_file)
+
+            except:
+                continue
+            break
 
 class mod10a2extractor:
     '''class to extract MOD10A2 to hidrocl variables
-    
+
     Parameters:
     nsnow (HidroCLVariable): north face snow
     ssnow (HidroCLVariable): south face snow'''
@@ -420,14 +433,13 @@ North face snow path: {self.nsnow.database}
 South face snow records: {len(self.ssnow.indatabase)}.
 South face snow database path: {self.ssnow.database}
         '''
-    
+
     def order_indatabase(self):
         '''order indatabase attributes'''
         if len(self.nsnow.indatabase) > 0:
             self.nsnow.indatabase.sort()
         if len(self.ssnow.indatabase) > 0:
             self.ssnow.indatabase.sort()
-        
 
     def compare_indatabase(self):
         '''compare indatabase and return elements that are equal'''
@@ -455,7 +467,7 @@ South face snow database path: {self.ssnow.database}
                 files_id.append(product_id)
         files_id.sort()
         return files_id
-    
+
     def count_scenes_occurrences(self):
         '''count self.all_scenes in self.product_ids returning a dictionary'''
         count_scenes = {}
@@ -501,42 +513,66 @@ South face snow database path: {self.ssnow.database}
     def run_extraction(self, limit = None):
         '''run scenes to process'''
 
-        tempfolder = temp_folder()
+        while True:
+            try:
+                self.ndvi.checkdatabase()
+                self.evi.checkdatabase()
+                self.nbr.checkdatabase()
 
-        scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
+                self.common_elements = self.compare_indatabase()
+                self.scenes_to_process = self.get_scenes_out_of_db()
 
-        if limit is not None:
-            scenes_to_process = self.scenes_to_process[:limit]
-        else:
-            scenes_to_process = self.scenes_to_process
+                tempfolder = temp_folder()
 
-        for scene in scenes_to_process:
-            if scene not in self.nsnow.indatabase or scene not in self.ssnow.indatabase:
-                print(f'Processing scene {scene} for snow processing')
-                r = re.compile('.*'+scene+'.*')
-                selected_files = list(filter(r.match, scenes_path))
-                start = time.time()
-                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                mos = mosaic_raster(selected_files,'Maximum_Snow_Extent')
-                mos = (mos.where(mos == 200)/200).fillna(0)
-                temporal_raster = os.path.join(tempfolder,'snow_'+scene+'.tif')
-                mos.rio.to_raster(temporal_raster, compress='LZW')
+                scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
 
-                if scene not in self.nsnow.indatabase:
-                    result_file = os.path.join(tempfolder,'nsnow_'+scene+'.csv')
-                    run_WeightedSumExtractionNorth(temporal_raster,result_file)
-                    write_line(self.nsnow.database, result_file, self.nsnow.catchment_names, scene, file_date, nrow = 1)
-                    os.remove(result_file)
+                if limit is not None:
+                    scenes_to_process = self.scenes_to_process[:limit]
+                else:
+                    scenes_to_process = self.scenes_to_process
 
-                if scene not in self.ssnow.indatabase:    
-                    result_file = os.path.join(tempfolder,'ssnow_'+scene+'.csv')
-                    run_WeightedSumExtractionSouth(temporal_raster,result_file)
-                    write_line(self.ssnow.database, result_file, self.ssnow.catchment_names, scene, file_date, nrow = 1)
-                    os.remove(result_file)
+                for scene in scenes_to_process:
 
-                end = time.time()
-                time_dif = str(round(end - start))
-                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
-                write_log_double(hcl.log_snw_o_modis_sca_cum,scene,currenttime,time_dif,self.nsnow.database,self.ssnow.database)
-                os.remove(temporal_raster)
+                    tempfolder = temp_folder()
+
+                    scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
+
+                    if limit is not None:
+                        scenes_to_process = self.scenes_to_process[:limit]
+                    else:
+                        scenes_to_process = self.scenes_to_process
+
+                    for scene in scenes_to_process:
+                        if scene not in self.nsnow.indatabase or scene not in self.ssnow.indatabase:
+                            print(f'Processing scene {scene} for snow processing')
+                            r = re.compile('.*'+scene+'.*')
+                            selected_files = list(filter(r.match, scenes_path))
+                            start = time.time()
+                            file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                            mos = mosaic_raster(selected_files,'Maximum_Snow_Extent')
+                            mos = (mos.where(mos == 200)/200).fillna(0)
+                            temporal_raster = os.path.join(tempfolder,'snow_'+scene+'.tif')
+                            mos.rio.to_raster(temporal_raster, compress='LZW')
+
+                            if scene not in self.nsnow.indatabase:
+                                result_file = os.path.join(tempfolder,'nsnow_'+scene+'.csv')
+                                run_WeightedSumExtractionNorth(temporal_raster,result_file)
+                                write_line(self.nsnow.database, result_file, self.nsnow.catchment_names, scene, file_date, nrow = 1)
+                                os.remove(result_file)
+
+                            if scene not in self.ssnow.indatabase:
+                                result_file = os.path.join(tempfolder,'ssnow_'+scene+'.csv')
+                                run_WeightedSumExtractionSouth(temporal_raster,result_file)
+                                write_line(self.ssnow.database, result_file, self.ssnow.catchment_names, scene, file_date, nrow = 1)
+                                os.remove(result_file)
+
+                            end = time.time()
+                            time_dif = str(round(end - start))
+                            currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                            print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                            write_log_double(hcl.log_snw_o_modis_sca_cum,scene,currenttime,time_dif,self.nsnow.database,self.ssnow.database)
+                            os.remove(temporal_raster)
+
+            except:
+                continue
+            break
