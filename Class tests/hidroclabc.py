@@ -150,20 +150,20 @@ def run_WeightedQuanExtraction(temporal_raster,result_file):
                      temporal_raster,
                      result_file])
 
-def run_WeightedSumExtractionNorth(temporal_raster,result_file):
+def run_WeightedPercExtractionNorth(temporal_raster,result_file):
     '''run WeightedSumExtraction for north face'''
     subprocess.call([hcl.rscript_path,
                      "--vanilla",
-                     hcl.WeightedSumExtraction,
+                     hcl.WeightedPercentExtraction,
                      hcl.hidrocl_north,
                      temporal_raster,
                      result_file])
 
-def run_WeightedSumExtractionSouth(temporal_raster,result_file):
+def run_WeightedPercExtractionSouth(temporal_raster,result_file):
     '''run WeightedSumExtraction for South face'''
     subprocess.call([hcl.rscript_path,
                      "--vanilla",
-                     hcl.WeightedSumExtraction,
+                     hcl.WeightedPercentExtraction,
                      hcl.hidrocl_south,
                      temporal_raster,
                      result_file])
@@ -334,7 +334,6 @@ NBR database path: {self.nbr.database}
     def run_extraction(self, limit = None):
         '''run scenes to process'''
 
-        
         with HiddenPrints():
             self.ndvi.checkdatabase()
             self.evi.checkdatabase()
@@ -534,54 +533,48 @@ South face snow database path: {self.ssnow.database}
         '''run scenes to process'''
 
         with HiddenPrints():
-            self.ndvi.checkdatabase()
-            self.evi.checkdatabase()
-            self.nbr.checkdatabase()
+            self.nsnow.checkdatabase()
+            self.ssnow.checkdatabase()
 
         self.common_elements = self.compare_indatabase()
         self.scenes_to_process = self.get_scenes_out_of_db()
 
         tempfolder = temp_folder()
         scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
+
         if limit is not None:
             scenes_to_process = self.scenes_to_process[:limit]
         else:
-            scenes_to_process = self.scenes_to_proces
+            scenes_to_process = self.scenes_to_process
+
         for scene in scenes_to_process:
-            tempfolder = temp_folder()
-            scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
-            if limit is not None:
-                scenes_to_process = self.scenes_to_process[:limit]
-            else:
-                scenes_to_process = self.scenes_to_proces
-            for scene in scenes_to_process:
-                if scene not in self.nsnow.indatabase or scene not in self.ssnow.indatabase:
-                    print(f'Processing scene {scene} for snow processing')
-                    r = re.compile('.*'+scene+'.*')
-                    selected_files = list(filter(r.match, scenes_path))
-                    start = time.time()
-                    file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                    mos = mosaic_raster(selected_files,'Maximum_Snow_Extent')
-                    mos = (mos.where(mos == 200)/200).fillna(0)
-                    temporal_raster = os.path.join(tempfolder,'snow_'+scene+'.tif')
-                    mos.rio.to_raster(temporal_raster, compress='LZW')
-                    if scene not in self.nsnow.indatabase:
-                        result_file = os.path.join(tempfolder,'nsnow_'+scene+'.csv')
-                        run_WeightedSumExtractionNorth(temporal_raster,result_file)
-                        write_line(self.nsnow.database, result_file, self.nsnow.catchment_names, scene, file_date, nrow = 1)
-                        os.remove(result_file)
-                    if scene not in self.ssnow.indatabase:
-                        result_file = os.path.join(tempfolder,'ssnow_'+scene+'.csv')
-                        run_WeightedSumExtractionSouth(temporal_raster,result_file)
-                        write_line(self.ssnow.database, result_file, self.ssnow.catchment_names, scene, file_date, nrow = 1)
-                        os.remove(result_file)
-                    end = time.time()
-                    time_dif = str(round(end - start))
-                    currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                    print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
-                    write_log_double(hcl.log_snw_o_modis_sca_cum,scene,currenttime,time_dif,self.nsnow.database,self.ssnow.database)
-                    os.remove(temporal_raster)
-                    gc.collect()
+            if scene not in self.nsnow.indatabase or scene not in self.ssnow.indatabase:
+                print(f'Processing scene {scene} for snow processing')
+                r = re.compile('.*'+scene+'.*')
+                selected_files = list(filter(r.match, scenes_path))
+                start = time.time()
+                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                mos = mosaic_raster(selected_files,'Maximum_Snow_Extent')
+                mos = (mos.where(mos == 200)/200).fillna(0)
+                temporal_raster = os.path.join(tempfolder,'snow_'+scene+'.tif')
+                mos.rio.to_raster(temporal_raster, compress='LZW')
+                if scene not in self.nsnow.indatabase:
+                    result_file = os.path.join(tempfolder,'nsnow_'+scene+'.csv')
+                    run_WeightedPercExtractionNorth(temporal_raster,result_file)
+                    write_line(self.nsnow.database, result_file, self.nsnow.catchment_names, scene, file_date, nrow = 1)
+                    os.remove(result_file)
+                if scene not in self.ssnow.indatabase:
+                    result_file = os.path.join(tempfolder,'ssnow_'+scene+'.csv')
+                    run_WeightedPercExtractionSouth(temporal_raster,result_file)
+                    write_line(self.ssnow.database, result_file, self.ssnow.catchment_names, scene, file_date, nrow = 1)
+                    os.remove(result_file)
+                end = time.time()
+                time_dif = str(round(end - start))
+                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                write_log_double(hcl.log_snw_o_modis_sca_cum,scene,currenttime,time_dif,self.nsnow.database,self.ssnow.database)
+                #os.remove(temporal_raster)
+                gc.collect()
 
 class mcd43a3extractor:
     '''class to extract MCD43A3 to hidrocl variables
@@ -769,73 +762,64 @@ Albedo p90 path: {self.albedo90.database}
             scenes_to_process = self.scenes_to_process
 
         for scene in scenes_to_process:
+            if scene not in self.albedomean.indatabase \
+                or scene not in self.albedo10.indatabase \
+                or scene not in self.albedo25.indatabase \
+                or scene not in self.albedomedian.indatabase \
+                or scene not in self.albedo75.indatabase \
+                or scene not in self.albedo90.indatabase:
+                print(f'Processing scene {scene} for albedo processing')
+                r = re.compile('.*'+scene+'.*')
+                selected_files = list(filter(r.match, scenes_path))
+                start = time.time()
+                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                mos = mosaic_raster(selected_files,'Albedo_BSA_vis')
+                mos = mos * 0.1
+                temporal_raster = os.path.join(tempfolder,'albedo_'+scene+'.tif')
+                mos.rio.to_raster(temporal_raster, compress='LZW')
 
-            if limit is not None:
-                scenes_to_process = self.scenes_to_process[:limit]
-            else:
-                scenes_to_process = self.scenes_to_process
+                if scene not in self.albedomean.indatabase:
+                    result_file = os.path.join(tempfolder,'albedomean_'+scene+'.csv')
+                    run_WeightedMeanExtraction(temporal_raster,result_file)
+                    write_line(self.albedomean.database, result_file, self.albedomean.catchment_names, scene, file_date, nrow = 1)
+                    'first done'
+                    os.remove(result_file)
 
-            print('here')
-
-            for scene in scenes_to_process:
-                if scene not in self.albedomean.indatabase \
-                    or scene not in self.albedo10.indatabase \
+                if scene not in self.albedo10.indatabase \
                     or scene not in self.albedo25.indatabase \
                     or scene not in self.albedomedian.indatabase \
                     or scene not in self.albedo75.indatabase \
                     or scene not in self.albedo90.indatabase:
-                    print(f'Processing scene {scene} for albedo processing')
-                    r = re.compile('.*'+scene+'.*')
-                    selected_files = list(filter(r.match, scenes_path))
-                    start = time.time()
-                    file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                    mos = mosaic_raster(selected_files,'Albedo_BSA_vis')
-                    mos = mos * 0.1
-                    temporal_raster = os.path.join(tempfolder,'albedo_'+scene+'.tif')
-                    mos.rio.to_raster(temporal_raster, compress='LZW')
-
-                    if scene not in self.albedomean.indatabase:
-                        result_file = os.path.join(tempfolder,'albedomean_'+scene+'.csv')
-                        run_WeightedMeanExtraction(temporal_raster,result_file)
-                        write_line(self.albedomean.database, result_file, self.albedomean.catchment_names, scene, file_date, nrow = 1)
-                        'first done'
-                        os.remove(result_file)
-
-                    if scene not in self.albedo10.indatabase \
-                        or scene not in self.albedo25.indatabase \
-                        or scene not in self.albedomedian.indatabase \
-                        or scene not in self.albedo75.indatabase \
-                        or scene not in self.albedo90.indatabase:
-                        result_file = os.path.join(tempfolder,'albedoq_'+scene+'.csv')
-                        run_WeightedQuanExtraction(temporal_raster,result_file)
-                        if scene not in self.albedo10.indatabase:
-                            write_line(self.albedo10.database, result_file, self.albedo10.catchment_names, scene, file_date, nrow = 1)
-                        if scene not in self.albedo25.indatabase:
-                            write_line(self.albedo25.database, result_file, self.albedo25.catchment_names, scene, file_date, nrow = 2)
-                        if scene not in self.albedomedian.indatabase:
-                            write_line(self.albedomedian.database, result_file, self.albedomedian.catchment_names, scene, file_date, nrow = 3)
-                        if scene not in self.albedo75.indatabase:
-                            write_line(self.albedo75.database, result_file, self.albedo75.catchment_names, scene, file_date, nrow = 4)
-                        if scene not in self.albedo90.indatabase:
-                            write_line(self.albedo90.database, result_file, self.albedo90.catchment_names, scene, file_date, nrow = 5)
-                        'second done'
-                        os.remove(result_file)
-
-                    end = time.time()
-                    time_dif = str(round(end - start))
-                    currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                    print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
-                    if scene not in self.albedomean.indatabase:
-                        write_log(hcl.log_sun_o_modis_al_mean_b_d16_p0d, scene, currenttime, time_dif, self.albedomean.database)
+                    result_file = os.path.join(tempfolder,'albedoq_'+scene+'.csv')
+                    run_WeightedQuanExtraction(temporal_raster,result_file)
                     if scene not in self.albedo10.indatabase:
-                        write_log(hcl.log_sun_o_modis_al_p10_b_d16_p0d, scene, currenttime, time_dif, self.albedo10.database)
+                        write_line(self.albedo10.database, result_file, self.albedo10.catchment_names, scene, file_date, nrow = 1)
                     if scene not in self.albedo25.indatabase:
-                        write_log(hcl.log_sun_o_modis_al_p25_b_d16_p0d, scene, currenttime, time_dif, self.albedo25.database)
+                        write_line(self.albedo25.database, result_file, self.albedo25.catchment_names, scene, file_date, nrow = 2)
                     if scene not in self.albedomedian.indatabase:
-                        write_log(hcl.log_sun_o_modis_al_median_b_d16_p0d, scene, currenttime, time_dif, self.albedomedian.database)
+                        write_line(self.albedomedian.database, result_file, self.albedomedian.catchment_names, scene, file_date, nrow = 3)
                     if scene not in self.albedo75.indatabase:
-                        write_log(hcl.log_sun_o_modis_al_p75_b_d16_p0d, scene, currenttime, time_dif, self.albedo75.database)
+                        write_line(self.albedo75.database, result_file, self.albedo75.catchment_names, scene, file_date, nrow = 4)
                     if scene not in self.albedo90.indatabase:
-                        write_log(hcl.log_sun_o_modis_al_p90_b_d16_p0d, scene, currenttime, time_dif, self.albedo90.database)
-                    os.remove(temporal_raster)
-                    gc.collect()
+                        write_line(self.albedo90.database, result_file, self.albedo90.catchment_names, scene, file_date, nrow = 5)
+                    'second done'
+                    os.remove(result_file)
+
+                end = time.time()
+                time_dif = str(round(end - start))
+                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                if scene not in self.albedomean.indatabase:
+                    write_log(hcl.log_sun_o_modis_al_mean_b_d16_p0d, scene, currenttime, time_dif, self.albedomean.database)
+                if scene not in self.albedo10.indatabase:
+                    write_log(hcl.log_sun_o_modis_al_p10_b_d16_p0d, scene, currenttime, time_dif, self.albedo10.database)
+                if scene not in self.albedo25.indatabase:
+                    write_log(hcl.log_sun_o_modis_al_p25_b_d16_p0d, scene, currenttime, time_dif, self.albedo25.database)
+                if scene not in self.albedomedian.indatabase:
+                    write_log(hcl.log_sun_o_modis_al_median_b_d16_p0d, scene, currenttime, time_dif, self.albedomedian.database)
+                if scene not in self.albedo75.indatabase:
+                    write_log(hcl.log_sun_o_modis_al_p75_b_d16_p0d, scene, currenttime, time_dif, self.albedo75.database)
+                if scene not in self.albedo90.indatabase:
+                    write_log(hcl.log_sun_o_modis_al_p90_b_d16_p0d, scene, currenttime, time_dif, self.albedo90.database)
+                os.remove(temporal_raster)
+                gc.collect()
