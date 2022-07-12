@@ -139,6 +139,15 @@ def run_WeightedMeanExtraction(temporal_raster,result_file):
                      temporal_raster,
                      result_file])
 
+def run_WeightedQuanExtraction(temporal_raster,result_file):
+    '''run WeightedMeanExtraction'''
+    subprocess.call([hcl.rscript_path,
+                     "--vanilla",
+                     hcl.WeightedQuanExtraction,
+                     hcl.hidrocl_sinusoidal,
+                     temporal_raster,
+                     result_file])
+
 def run_WeightedSumExtractionNorth(temporal_raster,result_file):
     '''run WeightedSumExtraction for north face'''
     subprocess.call([hcl.rscript_path,
@@ -575,6 +584,268 @@ South face snow database path: {self.ssnow.database}
                             currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                             print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
                             write_log_double(hcl.log_snw_o_modis_sca_cum,scene,currenttime,time_dif,self.nsnow.database,self.ssnow.database)
+                            os.remove(temporal_raster)
+                            gc.collect()
+
+            except:
+                continue
+            break
+
+class mcd43a3extractor:
+    '''class to extract MCD43A3 to hidrocl variables
+
+    Parameters:
+    albedomean (HidroCLVariable): mean albedo
+    albedo10 (HidroCLVariable): mean albedo percentile 10
+    albedo25 (HidroCLVariable): mean albedo percentile 25
+    albedomedian (HidroCLVariable): mean albedomedian
+    albedo75 (HidroCLVariable): mean albedo percentile 75
+    albedo90 (HidroCLVariable): mean albedo percentile 90
+    '''
+
+    def __init__(self,albedomean,albedo10,albedo25,albedomedian,albedo75,albedo90):
+        if isinstance(albedomean,HidroCLVariable) \
+            & isinstance(albedo10,HidroCLVariable) \
+            & isinstance(albedo25,HidroCLVariable) \
+            & isinstance(albedomedian,HidroCLVariable) \
+            & isinstance(albedo75,HidroCLVariable) \
+            & isinstance(albedo90,HidroCLVariable):
+            self.albedomean = albedomean
+            self.albedo10 = albedo10
+            self.albedo25 = albedo25
+            self.albedomedian = albedomedian
+            self.albedo75 = albedo75
+            self.albedo90 = albedo90
+            self.productname = 'MODIS MCD43A3 Version 0.61'
+            self.productpath = hcl.mcd43a3_path
+            self.common_elements = self.compare_indatabase()
+            self.product_files = self.read_product_files()
+            self.product_ids = self.get_product_ids()
+            self.all_scenes = self.check_product_files()
+            self.scenes_occurrences = self.count_scenes_occurrences()
+            self.incomplete_scenes = self.get_incomplete_scenes()
+            self.overpopulated_scenes = self.get_overpopulated_scenes()
+            self.complete_scenes = self.get_complete_scenes()
+            self.scenes_to_process = self.get_scenes_out_of_db()
+        else:
+            raise TypeError('nsnow and snow must be HidroCLVariable objects')
+
+    def __repr__(self):
+        return f'Class to extract {self.productname}'
+    def __str__(self):
+        return f'''
+Product: {self.productname}
+
+Albedo mean records: {len(self.albedomean.indatabase)}.
+Albedo mean path: {self.albedomean.database}
+
+Albedo p10 records: {len(self.albedo10.indatabase)}.
+Albedo p10 path: {self.albedo10.database}
+
+Albedo p25 records: {len(self.albedo25.indatabase)}.
+Albedo p25 path: {self.albedo25.database}
+
+Albedo median records: {len(self.albedomedian.indatabase)}.
+Albedo median path: {self.albedomedian.database}
+
+Albedo p75 records: {len(self.albedo75.indatabase)}.
+Albedo p75 path: {self.albedo75.database}
+
+Albedo p90 records: {len(self.albedo90.indatabase)}.
+Albedo p90 path: {self.albedo90.database}
+        '''
+
+    def order_indatabase(self):
+        '''order indatabase attributes'''
+        if len(self.albedomean.indatabase) > 0:
+            self.albedomean.indatabase.sort()
+        if len(self.albedo10.indatabase) > 0:
+            self.albedo10.indatabase.sort()
+        if len(self.albedo25.indatabase) > 0:
+            self.albedo25.indatabase.sort()
+        if len(self.albedomedian.indatabase) > 0:
+            self.albedomedian.indatabase.sort()
+        if len(self.albedo75.indatabase) > 0:
+            self.albedo75.indatabase.sort()
+        if len(self.albedo90.indatabase) > 0:
+            self.albedo90.indatabase.sort()
+
+    def compare_indatabase(self):
+        '''compare indatabase and return elements that are equal'''
+        self.order_indatabase()
+        if len(self.albedomean.indatabase) > 0 \
+            or len(self.albedo10.indatabase) > 0 \
+            or len(self.albedo25.indatabase) > 0 \
+            or len(self.albedomedian.indatabase) > 0 \
+            or len(self.albedo75.indatabase) > 0 \
+            or len(self.albedo90.indatabase) > 0:
+            common_elements = list(set(self.albedomean.indatabase) \
+                & set(self.albedo10.indatabase)) \
+                & set(self.albedo25.indatabase) \
+                & set(self.albedomedian.indatabase) \
+                & set(self.albedo75.indatabase) \
+                & set(self.albedo90.indatabase)
+        else:
+            common_elements = []
+        return common_elements
+
+    def read_product_files(self):
+        '''read product files'''
+        return [value for value in os.listdir(self.productpath) if '.hdf' in value]
+
+    def get_product_ids(self):
+        '''get product ids'''
+        product_ids = [value.split('.')[1] for value in self.product_files]
+        return product_ids
+
+    def check_product_files(self):
+        '''extract product ids from product files'''
+        files_id = []
+        for product_id in self.product_ids:
+            if product_id not in files_id:
+                files_id.append(product_id)
+        files_id.sort()
+        return files_id
+
+    def count_scenes_occurrences(self):
+        '''count self.all_scenes in self.product_ids returning a dictionary'''
+        count_scenes = {}
+        for scene in self.all_scenes:
+            count_scenes[scene] = self.product_ids.count(scene)
+        return count_scenes
+
+    def get_overpopulated_scenes(self):
+        '''get scenes with more than 9 items from self.scenes_occurrences'''
+        overpopulated_scenes = []
+        for scene,occurrences in self.scenes_occurrences.items():
+            if occurrences > 9:
+                overpopulated_scenes.append(scene)
+        return overpopulated_scenes
+
+    def get_incomplete_scenes(self):
+        '''get scenes with less than 9 items from self.scenes_occurrences'''
+        incomplete_scenes = []
+        for scene,occurrences in self.scenes_occurrences.items():
+            if occurrences < 9:
+                incomplete_scenes.append(scene)
+        return incomplete_scenes
+
+    def get_complete_scenes(self):
+        '''get scenes with 9 items from self.scenes_occurrences'''
+        complete_scenes = []
+        for scene,occurrences in self.scenes_occurrences.items():
+            if occurrences == 9:
+                complete_scenes.append(scene)
+        return complete_scenes
+
+    def get_scenes_out_of_db(self):
+        '''compare
+        self.albedomean.indatabase and
+        self.albedo10.indatabase and
+        self.albedo25.indatabase and
+        self.albedomedian.indatabase and
+        self.albedo75.indatabase and
+        self.albedo90.indatabase
+        return scenes that are not in the database'''
+        scenes_out_of_db = []
+        for scene in self.all_scenes:
+            if scene not in self.common_elements:
+                scenes_out_of_db.append(scene)
+        return scenes_out_of_db
+
+    def run_extraction(self, limit = None):
+        '''run scenes to process'''
+
+        while True:
+            try:
+                self.albedomean.checkdatabase()
+                self.albedo10.checkdatabase()
+                self.albedo25.checkdatabase()
+                self.albedomedian.checkdatabase()
+                self.albedo75.checkdatabase()
+                self.albedo90.checkdatabase()
+
+                self.common_elements = self.compare_indatabase()
+                self.scenes_to_process = self.get_scenes_out_of_db()
+
+                tempfolder = temp_folder()
+
+                scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
+
+                if limit is not None:
+                    scenes_to_process = self.scenes_to_process[:limit]
+                else:
+                    scenes_to_process = self.scenes_to_process
+
+                for scene in scenes_to_process:
+
+                    tempfolder = temp_folder()
+
+                    scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
+
+                    if limit is not None:
+                        scenes_to_process = self.scenes_to_process[:limit]
+                    else:
+                        scenes_to_process = self.scenes_to_process
+
+                    for scene in scenes_to_process:
+                        if scene not in self.albedomean.indatabase \
+                            or scene not in self.albedo10.indatabase \
+                            or scene not in self.albedo25.indatabase \
+                            or scene not in self.albedomedian.indatabase \
+                            or scene not in self.albedo75.indatabase \
+                            or scene not in self.albedo90.indatabase:
+                            print(f'Processing scene {scene} for albedo processing')
+                            r = re.compile('.*'+scene+'.*')
+                            selected_files = list(filter(r.match, scenes_path))
+                            start = time.time()
+                            file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                            mos = mosaic_raster(selected_files,'Albedo_BSA_vis')
+                            mos = mos * 0.1
+                            temporal_raster = os.path.join(tempfolder,'albedo_'+scene+'.tif')
+                            mos.rio.to_raster(temporal_raster, compress='LZW')
+
+                            if scene not in self.albedomean.indatabase:
+                                result_file = os.path.join(tempfolder,'albedomean_'+scene+'.csv')
+                                run_WeightedMeanExtraction(temporal_raster,result_file)
+                                write_line(self.albedomean.database, result_file, self.albedomean.catchment_names, scene, file_date, nrow = 1)
+                                os.remove(result_file)
+
+                            if scene not in self.albedo10.indatabase \
+                                or scene not in self.albedo25.indatabase \
+                                or scene not in self.albedomedian.indatabase \
+                                or scene not in self.albedo75.indatabase \
+                                or scene not in self.albedo90.indatabase:
+                                result_file = os.path.join(tempfolder,'albedoq_'+scene+'.csv')
+                                run_WeightedMeanExtraction(temporal_raster,result_file)
+                                if scene not in self.albedo10.indatabase:
+                                    write_line(self.albedo10.database, result_file, self.albedo10.catchment_names, scene, file_date, nrow = 1)
+                                if scene not in self.albedo25.indatabase:
+                                    write_line(self.albedo25.database, result_file, self.albedo25.catchment_names, scene, file_date, nrow = 2)
+                                if scene not in self.albedomedian.indatabase:
+                                    write_line(self.albedomedian.database, result_file, self.albedomedian.catchment_names, scene, file_date, nrow = 3)
+                                if scene not in self.albedo75.indatabase:
+                                    write_line(self.albedo75.database, result_file, self.albedo75.catchment_names, scene, file_date, nrow = 4)
+                                if scene not in self.albedo90.indatabase:
+                                    write_line(self.albedo90.database, result_file, self.albedo90.catchment_names, scene, file_date, nrow = 5)
+                                os.remove(result_file)
+
+                            end = time.time()
+                            time_dif = str(round(end - start))
+                            currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                            print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                            if scene not in self.albedomean.indatabase:
+                                write_log(hcl.log_sun_o_modis_al_mean_b_d16_p0d, scene, currenttime, time_dif, self.albedomean.database)
+                            if scene not in self.albedo10.indatabase:
+                                write_log(hcl.log_sun_o_modis_al_p10_b_d16_p0d, scene, currenttime, time_dif, self.albedo10.database)
+                            if scene not in self.albedo25.indatabase:
+                                write_log(hcl.log_sun_o_modis_al_p25_b_d16_p0d, scene, currenttime, time_dif, self.albedo25.database)
+                            if scene not in self.albedomedian.indatabase:
+                                write_log(hcl.log_sun_o_modis_al_median_b_d16_p0d, scene, currenttime, time_dif, self.albedomedian.database)
+                            if scene not in self.albedo75.indatabase:
+                                write_log(hcl.log_sun_o_modis_al_p75_b_d16_p0d, scene, currenttime, time_dif, self.albedo75.database)
+                            if scene not in self.albedo90.indatabase:
+                                write_log(hcl.log_sun_o_modis_al_p90_b_d16_p0d, scene, currenttime, time_dif, self.albedo90.database)
                             os.remove(temporal_raster)
                             gc.collect()
 
