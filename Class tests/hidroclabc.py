@@ -576,6 +576,7 @@ South face snow database path: {self.ssnow.database}
                             print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
                             write_log_double(hcl.log_snw_o_modis_sca_cum,scene,currenttime,time_dif,self.nsnow.database,self.ssnow.database)
                             os.remove(temporal_raster)
+                            gc.collect()
 
             except:
                 continue
