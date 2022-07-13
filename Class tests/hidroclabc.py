@@ -80,7 +80,7 @@ Database path: {self.database}.
         else: # create db
             if self.catchment_names is None:
                 print('Database not found. Please, add catchment names before creating the database')
-            else:    
+            else:
                 print('Database not found, creating it for ' + self.database)
                 header_line = [str(s) for s in self.catchment_names]
                 header_line.insert(0,'name_id')
@@ -326,7 +326,7 @@ NBR database path: {self.nbr.database}
         self.nbr.indatabase and
         return scenes that are not in the database'''
         scenes_out_of_db = []
-        for scene in self.all_scenes:
+        for scene in self.complete_scenes:
             if scene not in self.common_elements:
                 scenes_out_of_db.append(scene)
         return scenes_out_of_db
@@ -524,7 +524,7 @@ South face snow database path: {self.ssnow.database}
         self.ssnow.indatabase and
         return scenes that are not in the database'''
         scenes_out_of_db = []
-        for scene in self.all_scenes:
+        for scene in self.complete_scenes:
             if scene not in self.common_elements:
                 scenes_out_of_db.append(scene)
         return scenes_out_of_db
@@ -733,7 +733,7 @@ Albedo p90 path: {self.albedo90.database}
         self.albedo90.indatabase
         return scenes that are not in the database'''
         scenes_out_of_db = []
-        for scene in self.all_scenes:
+        for scene in self.complete_scenes:
             if scene not in self.common_elements:
                 scenes_out_of_db.append(scene)
         return scenes_out_of_db
