@@ -28,6 +28,8 @@ from math import ceil
 from pathlib import Path
 import rioxarray as rioxr
 from datetime import datetime
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 from rioxarray.merge import merge_arrays
 
 import hidrocl_paths as hcl
@@ -89,6 +91,55 @@ Database path: {self.database}.
                 with open(self.database,'w') as the_file:
                     the_file.write(header_line)
                 print('Database created!')
+
+    def valid_data(self):
+        '''return valid data for all catchments'''
+        return self.observations.notnull().sum()[1:]
+
+    def plot_valid_data_all(self):
+        '''plot valid data'''
+        df = self.observations.drop(self.observations.columns[0], axis=1).notnull().sum().divide(len(self.observations.index)).multiply(100)
+        ax = df.plot(title = 'Valid observations by catchment', ylim = (0,105), color = 'lightseagreen')
+        ax.yaxis.set_major_formatter(mtick.PercentFormatter())
+
+    def plot_valid_data_individual(self,catchment):
+        '''plot valid data'''
+        match catchment:
+            case str():
+                if(catchment in self.catchment_names):
+                    catchment = catchment
+                else:
+                    print('Catchment not found')
+                    return
+            case int():
+                if(catchment < len(self.catchment_names)):
+                    catchment = self.catchment_names[catchment]
+                else:
+                    print('Catchment index out of range')
+                    return
+            case _:
+                print('Catchment not found')
+                return
+
+        aim = self.observations[[catchment]]
+        year_ = aim.index.year
+        doy_ = aim.index.dayofyear
+
+        aim = aim.notnull().groupby([year_,doy_]).sum()
+        aim = aim.unstack(level = 0).transpose()
+
+
+        plt.imshow(aim, cmap = plt.get_cmap('bwr_r',2), aspect = 'equal', vmin = -0.5, vmax = 1.5)
+        plt.colorbar(ticks = [0,1],fraction=0.046, pad=0.04).set_ticklabels(['NaN','Valid'])
+        plt.title(f'Valid observations for catchment ID {catchment}')
+        plt.xticks(range(0,len(aim.columns),3), aim.columns[::3])
+        plt.yticks(range(0,len(aim.index),3), aim.index.get_level_values(1)[::3])
+
+        plt.show()
+
+
+
+
 
 def mosaic_raster(raster_list,layer):
     '''function to mosaic files with rioxarray library'''
