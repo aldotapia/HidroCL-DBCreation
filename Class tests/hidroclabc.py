@@ -137,8 +137,12 @@ Database path: {self.database}.
 
         plt.show()
 
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
-
+def linear_regression_imputation(dataframe):
+    '''function to compute correlation, select the column with highest correlation coefficient, then imput data predicting'''
+    print('inclomplete function, on progress')
 
 
 def mosaic_raster(raster_list,layer):
@@ -250,6 +254,22 @@ def write_log_double(log_file,file_id,currenttime,time_dif,database1,database2):
     '''write log file for two databases'''
     with open(log_file, 'a') as txt_file:
         txt_file.write(f'ID {file_id}. Date: {currenttime}. Process time: {time_dif} s. Databases: {database1}/{database2}. \n')
+
+def remove_non_supported_files(product_path):
+    '''function for removing non supported files by rioxarray'''
+    files = os.listdir(product_path)
+    for file in files:
+        try:
+            start = time.time()
+            with rioxr.open_rasterio(os.path.join(product_path,file)) as scr:
+                pass
+            gc.collect()
+            end = time.time()
+            print(f'opening {file}. Time: {(end - start)}')
+        except:
+            os.remove(os.path.join(product_path,file))
+            end = time.time()
+            print(f'removing {file}. Time: {(end - start)}')
 
 class HiddenPrints:
     def __enter__(self):
