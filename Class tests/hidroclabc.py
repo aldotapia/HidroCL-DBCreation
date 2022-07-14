@@ -21,8 +21,8 @@ import gc
 import sys
 import csv
 import time
+import numpy as np
 import subprocess
-from importlib_metadata import suppress
 import pandas as pd
 from math import ceil
 from pathlib import Path
@@ -31,6 +31,8 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 from rioxarray.merge import merge_arrays
+from sklearn.linear_model import LinearRegression
+
 
 import hidrocl_paths as hcl
 
@@ -137,12 +139,51 @@ Database path: {self.database}.
 
         plt.show()
 
-import numpy as np
-from sklearn.linear_model import LinearRegression
 
 def linear_regression_imputation(dataframe):
-    '''function to compute correlation, select the column with highest correlation coefficient, then imput data predicting'''
-    print('inclomplete function, on progress')
+    '''function to compute imput data with the column with the highest correlation'''
+    nonancases = dataframe.transpose().notnull().sum()
+    #nonancases.plot(ylim = (0,len(dataframe.columns) + 0.5))
+
+    nontest = (nonancases == 0).sum()
+
+    match nontest:
+        case _ if nontest == 0:
+            print('Imputing data...')
+        case _ if nontest > 0:
+            print('There is at least one date where all columns are NaN values')
+            return
+        case _:
+            print('Wrong input')
+
+    # compute correlation matrix for all columns
+    corr_matrix = dataframe.corr()
+
+    corr_matrix = corr_matrix.abs().unstack()
+
+    first_index = corr_matrix.index.get_level_values(0).to_list()
+    second_index = corr_matrix.index.get_level_values(1).to_list()
+    cor_slice_list = []
+    for i in range(0,len(first_index)):
+        cor_slice_list.append(first_index[i] != second_index[i])
+    corr_matrix = corr_matrix[cor_slice_list]
+
+    cols = dataframe.columns.to_list()
+
+    for col in cols:
+        coltest = dataframe[col].isnull().sum()
+        match coltest:
+            case _ if coltest == 0:
+                print(f'Column {col} has no missing values')
+                return
+            case _ if coltest > 0:
+                print(f'Column {col} has {coltest} missing values')
+
+        # check correlation
+        corr_matrix_col = corr_matrix[(col)].sort_values(ascending = False)
+        print(corr_matrix_col)
+
+
 
 
 def mosaic_raster(raster_list,layer):
