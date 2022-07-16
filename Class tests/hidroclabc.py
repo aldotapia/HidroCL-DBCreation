@@ -21,7 +21,7 @@ import gc
 import sys
 import csv
 import time
-import numpy as np
+import copy
 import subprocess
 import pandas as pd
 from math import ceil
@@ -32,7 +32,6 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 from rioxarray.merge import merge_arrays
 from sklearn.linear_model import LinearRegression
-
 
 import hidrocl_paths as hcl
 
@@ -139,12 +138,11 @@ Database path: {self.database}.
 
         plt.show()
 
-
-def linear_regression_imputation(dataframe):
+def linear_regression_imputation(dataframe, min_observations = 100):
     '''function to compute imput data with the column with the highest correlation'''
-    nonancases = dataframe.transpose().notnull().sum()
-    #nonancases.plot(ylim = (0,len(dataframe.columns) + 0.5))
+    dataframe2 = copy.copy(dataframe)
 
+    nonancases = dataframe.transpose().notnull().sum()
     nontest = (nonancases == 0).sum()
 
     match nontest:
@@ -174,17 +172,59 @@ def linear_regression_imputation(dataframe):
         coltest = dataframe[col].isnull().sum()
         match coltest:
             case _ if coltest == 0:
-                print(f'Column {col} has no missing values')
-                return
+                #print(f'Column {col} has no missing values')
+                continue
             case _ if coltest > 0:
-                print(f'Column {col} has {coltest} missing values')
+                print(f'\nColumn {col} has {coltest} missing values')
 
         # check correlation
         corr_matrix_col = corr_matrix[(col)].sort_values(ascending = False)
-        print(corr_matrix_col)
+        fill_st = corr_matrix_col.index.to_list()
 
+        for station in fill_st:
+            y = dataframe2[col]
+            y_original = dataframe[col]
+            x = dataframe[station]
+            x_tofill = (y.isnull() & (x.isnull() == False))
+            x_count = x_tofill.sum()
+            match x_count:
+                case _ if x_count == 0:
+                    #print(f'{station} has no observations for filling {col}')
+                    continue
+                case _ if x_count > 0:
+                    common_slice = ((x.isnull() == False) & (y_original.isnull() == False))
+                    common = common_slice.sum()
+                    match common:
+                        case _ if common == 0:
+                            print(f'{station} has {x_count} for filling {col} but no values for modeling')
+                            continue
+                        case _ if common > 0:
+                            print(f'{station} has {x_count} for filling {col} and {common} for modeling')
+                            match min_observations:
+                                case _ if min_observations > common:
+                                    print(f'But {station} has less obsertavions than required')
+                                    continue
+                                case _ if min_observations <= common:
+                                    #print(f'{station} has enough observations for modeling')
+                                    print(f'Filling {col} with {station}')
+                                    x_in = x[common_slice].to_numpy().reshape(-1,1)
+                                    y_in = y_original[common_slice].to_numpy()
+                                    model = LinearRegression().fit(x_in,y_in)
+                                    x_filled = model.predict(x[x_tofill].to_numpy().reshape(-1,1))
+                                    x_filled = [int(x) for x in x_filled]
+                                    dataframe2.iloc[x_tofill,dataframe2.columns.get_loc(col)] = x_filled
 
-
+                                case _:
+                                    print('Wrong input')
+                                    continue
+                        case _:
+                            print('Wrong input')
+                            continue
+                case _:
+                    print('Wrong input')
+                    continue
+    print('No missing values')
+    return dataframe2
 
 def mosaic_raster(raster_list,layer):
     '''function to mosaic files with rioxarray library'''
