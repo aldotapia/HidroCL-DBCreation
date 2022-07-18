@@ -510,8 +510,11 @@ NBR database path: {self.nbr.database}
                 selected_files = list(filter(r.match, scenes_path))
                 start = time.time()
                 file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                mos = mosaic_raster(selected_files,'250m 16 days NDVI')
-                mos = mos * 0.1
+                try:
+                    mos = mosaic_raster(selected_files,'250m 16 days NDVI')
+                    mos = mos * 0.1
+                except:
+                    continue
                 temporal_raster = os.path.join(tempfolder,'ndvi_'+scene+'.tif')
                 result_file = os.path.join(tempfolder,'ndvi_'+scene+'.csv')
                 mos.rio.to_raster(temporal_raster, compress='LZW')
@@ -531,8 +534,11 @@ NBR database path: {self.nbr.database}
                 selected_files = list(filter(r.match, scenes_path))
                 start = time.time()
                 file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                mos = mosaic_raster(selected_files,'250m 16 days EVI')
-                mos = mos * 0.1
+                try:
+                    mos = mosaic_raster(selected_files,'250m 16 days EVI')
+                    mos = mos * 0.1
+                except:
+                    continue
                 temporal_raster = os.path.join(tempfolder,'evi_'+scene+'.tif')
                 result_file = os.path.join(tempfolder,'evi_'+scene+'.csv')
                 mos.rio.to_raster(temporal_raster, compress='LZW')
@@ -552,7 +558,10 @@ NBR database path: {self.nbr.database}
                 selected_files = list(filter(r.match, scenes_path))
                 start = time.time()
                 file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                mos = mosaic_nd_raster(selected_files,'250m 16 days NIR reflectance', '250m 16 days MIR reflectance')
+                try:
+                    mos = mosaic_nd_raster(selected_files,'250m 16 days NIR reflectance', '250m 16 days MIR reflectance')
+                except:
+                    continue
                 temporal_raster = os.path.join(tempfolder,'nbr_'+scene+'.tif')
                 result_file = os.path.join(tempfolder,'nbr_'+scene+'.csv')
                 mos.rio.to_raster(temporal_raster, compress='LZW', dtype = 'int16')
@@ -706,8 +715,11 @@ South face snow database path: {self.ssnow.database}
                 selected_files = list(filter(r.match, scenes_path))
                 start = time.time()
                 file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                mos = mosaic_raster(selected_files,'Maximum_Snow_Extent')
-                mos = (mos.where(mos == 200)/200).fillna(0)
+                try:
+                    mos = mosaic_raster(selected_files,'Maximum_Snow_Extent')
+                    mos = (mos.where(mos == 200)/200).fillna(0)
+                except:
+                    continue
                 temporal_raster = os.path.join(tempfolder,'snow_'+scene+'.tif')
                 mos.rio.to_raster(temporal_raster, compress='LZW')
                 if scene not in self.nsnow.indatabase:
@@ -925,8 +937,11 @@ Albedo p90 path: {self.albedo90.database}
                 selected_files = list(filter(r.match, scenes_path))
                 start = time.time()
                 file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
-                mos = mosaic_raster(selected_files,'Albedo_BSA_vis')
-                mos = mos * 0.1
+                try:
+                    mos = mosaic_raster(selected_files,'Albedo_BSA_vis')
+                    mos = mos * 0.1
+                except:
+                    continue
                 temporal_raster = os.path.join(tempfolder,'albedo_'+scene+'.tif')
                 mos.rio.to_raster(temporal_raster, compress='LZW')
 
