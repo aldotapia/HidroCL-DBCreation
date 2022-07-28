@@ -1,29 +1,17 @@
-
-Processing_functions/.DS_Store
-.DS_Store
+*.DS_Store
 paths_credentials_etc
 HidroCL.sublime-project
 HidroCL.sublime-workspace
-Processing_functions/hidrocl_paths.py
-Processing_functions/hidrocl_paths.R
-Processing_functions/.Rhistory
+*hidrocl_paths.py
+*hidrocl_paths.R
+*.Rhistory
 OSX_configutation
-DownloadFunctions/hidrocl_paths.py
-DownloadFunctions/hidrocl_paths.R
-DownloadFunctions/.ipynb_checkpoints/earthdata_download-checkpoint.py
-DownloadFunctions/__pycache__/hidrocl_paths.cpython-310.pyc
-Processing_functions/__pycache__/hidrocl.cpython-310.pyc
-Processing_functions/__pycache__/hidrocl_paths.cpython-310.pyc
 .vscode/settings.json
-DownloadFunctions/persiann_download.py
 HidroCL-DBCreation.code-workspace
 hidrocl_conda.yaml
-Class tests/__pycache__/hidrocl_paths.cpython-310.pyc
-Class tests/hidrocl_paths.py
-Class tests/.ipynb_checkpoints/UsageExample-checkpoint.ipynb
-Class tests/__pycache__/hidroclabc.cpython-310.pyc
-Class tests/hidrocl_paths_tests.py
-Class tests/.ipynb_checkpoints/ExtractData-checkpoint.ipynb
-Class tests/.ipynb_checkpoints/Untitled-checkpoint.ipynb
+*hidrocl_paths_tests.py
 Class tests/Untitled.ipynb
 Class tests/hidroclabc.py
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+*/__pycache__/*

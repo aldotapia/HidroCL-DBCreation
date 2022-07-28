@@ -10,23 +10,40 @@
 # usage as low as possible. Be aware than the field used for appending
 # ID column to value column here is `gauge_id`
 
-options(warn=-1)
+options(warn = -1)
 
-f_args = commandArgs(trailingOnly=TRUE)
-sf <- f_args[1] # polygon for extraction
+f_args <- commandArgs(trailingOnly = TRUE)
+v <- f_args[1] # polygon for extraction
 r <- f_args[2] # raster for extraction
 out <- f_args[3] # output file
 
-custom_mean <- function(values, coverage_fractions){
+custom_mean <- function(values, coverage_fractions) {
   covf <- coverage_fractions[!is.na(values)]
   vals <- values[!is.na(values)]
-  try(round(sum(vals*covf)/sum(covf)),silent = TRUE)
+  try(round(sum(vals * covf) / sum(covf)), silent = TRUE)
 }
 
-result <- try({exactextractr::exact_extract(x = terra::rast(r),
-                                            y = sf::read_sf(sf),
-                                            fun = custom_mean,
-                                            append_cols = 'gauge_id',
-                                            progress = F)}, silent = TRUE)
+count_na <- function(values, coverage_fractions) {
+  round((sum(!is.na(values)) / length(values)) * 1000)
+}
+
+result <- try({
+  exactextractr::exact_extract(x = terra::rast(r),
+  y = sf::read_sf(v),
+  fun = custom_mean,
+  append_cols = "gauge_id",
+  progress = F)}, silent = TRUE)
+
+result2 <- try({
+  exactextractr::exact_extract(x = terra::rast(r),
+  y = sf::read_sf(v),
+  fun = count_na,
+  append_cols = "gauge_id",
+  progress = F)}, silent = TRUE)
+
+result <- cbind(result, result2[, 2])
+
+names(result) <- c("gauge_id", "mean", "pc")
+
 terra::tmpFiles(remove = T)
-write.table(x = result,file = out,sep = ',', row.names = F)
+write.table(x = result, file = out, sep =  ",", row.names = F)

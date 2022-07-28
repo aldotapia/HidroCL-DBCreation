@@ -42,15 +42,19 @@ class HidroCLVariable:
 
     Parameters:
     name (str): name of the variable
-    database (str): path to the database'''
+    database (str): path to the database
+    pcdatabase (str): path to pixel count database'''
 
-    def __init__(self,name,database):
+    def __init__(self,name,database,pcdatabase):
         self.name = name
         self.database = database
+        self.pcdatabase = pcdatabase
         self.indatabase =  ''
         self.observations =  None
+        self.pcobservations =  None
         self.catchment_names = None
         self.checkdatabase()
+        self.checkpcdatabase()
 
     def __repr__(self):
         return f'Variable: {self.name}. Records: {len(self.indatabase)}'
@@ -60,6 +64,7 @@ class HidroCLVariable:
 Variable {self.name}.
 Records: {len(self.indatabase)}.
 Database path: {self.database}.
+Pixel count database path: {self.pcdatabase}.
         '''
 
     def add_catchment_names(self,catchment_names_list):
@@ -92,6 +97,26 @@ Database path: {self.database}.
                 with open(self.database,'w') as the_file:
                     the_file.write(header_line)
                 print('Database created!')
+
+    def checkpcdatabase(self):
+        '''check database'''
+        if os.path.exists(self.pcdatabase): # check if db exists
+            print('Pixel count database found, using ' + self.pcdatabase)
+            self.pcobservations = pd.read_csv(self.pcdatabase)
+            self.pcobservations.date=pd.to_datetime(self.pcobservations.date, format = '%Y-%m-%d')
+            self.pcobservations.set_index(['date'], inplace = True)
+        else: # create db
+            if self.catchment_names is None:
+                print('Pixel count database not found. Please, add catchment names before creating the database')
+            else:
+                print('Database not found, creating it for ' + self.pcdatabase)
+                header_line = [str(s) for s in self.catchment_names]
+                header_line.insert(0,'name_id')
+                header_line.insert(1,'date')
+                header_line  = ','.join(header_line) + '\n'
+                with open(self.pcdatabase,'w') as the_file:
+                    the_file.write(header_line)
+                print('Pixel count database created!')
 
     def valid_data(self):
         '''return valid data for all catchments'''
@@ -520,6 +545,7 @@ NBR database path: {self.nbr.database}
                 mos.rio.to_raster(temporal_raster, compress='LZW')
                 run_WeightedMeanExtraction(temporal_raster,result_file)
                 write_line(self.ndvi.database, result_file, self.ndvi.catchment_names, scene, file_date, nrow = 1)
+                write_line(self.ndvi.pcdatabase, result_file, self.ndvi.catchment_names, scene, file_date, nrow = 2)
                 end = time.time()
                 time_dif = str(round(end - start))
                 currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -544,6 +570,7 @@ NBR database path: {self.nbr.database}
                 mos.rio.to_raster(temporal_raster, compress='LZW')
                 run_WeightedMeanExtraction(temporal_raster,result_file)
                 write_line(self.evi.database, result_file, self.evi.catchment_names, scene, file_date, nrow = 1)
+                write_line(self.evi.pcdatabase, result_file, self.evi.catchment_names, scene, file_date, nrow = 2)
                 end = time.time()
                 time_dif = str(round(end - start))
                 currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -567,6 +594,7 @@ NBR database path: {self.nbr.database}
                 mos.rio.to_raster(temporal_raster, compress='LZW', dtype = 'int16')
                 run_WeightedMeanExtraction(temporal_raster,result_file)
                 write_line(self.nbr.database, result_file, self.nbr.catchment_names, scene, file_date, nrow = 1)
+                write_line(self.nbr.pcdatabase, result_file, self.nbr.catchment_names, scene, file_date, nrow = 2)
                 end = time.time()
                 time_dif = str(round(end - start))
                 currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -990,3 +1018,228 @@ Albedo p90 path: {self.albedo90.database}
                     write_log(hcl.log_sun_o_modis_al_p90_b_d16_p0d, scene, currenttime, time_dif, self.albedo90.database)
                 os.remove(temporal_raster)
                 gc.collect()
+
+class gldas_noah:
+    '''class to extract GLDAS NOAH025 3H to hidrocl variables
+
+    Parameters:
+    nswe (HidroCLVariable): snow water equivalent for north face variable
+    sswe (HidroCLVariable): snow water equivalent for south face variable
+    to define (HidroCLVariable): evi variable'''
+
+    def __init__(self,nswe,sswe):
+        if isinstance(nswe,HidroCLVariable) & isinstance(sswe,HidroCLVariable):
+            self.nswe = nswe
+            self.sswe = sswe
+            self.productname = 'GLDAS-NOAH 0.25º 3-Hour'
+            self.productpath = hcl.gldas_noah025_3h_path
+            self.common_elements = self.compare_indatabase()
+            self.product_files = self.read_product_files()
+            self.product_ids = self.get_product_ids()
+            self.all_scenes = self.check_product_files()
+            self.scenes_occurrences = self.count_scenes_occurrences()
+            self.incomplete_scenes = self.get_incomplete_scenes()
+            self.overpopulated_scenes = self.get_overpopulated_scenes()
+            self.complete_scenes = self.get_complete_scenes()
+            self.scenes_to_process = self.get_scenes_out_of_db()
+        else:
+            raise TypeError('inputs must be HidroCLVariable objects')
+
+    def __repr__(self):
+        return f'Class to extract {self.productname}'
+    def __str__(self):
+        return f'''
+Product: {self.productname}
+
+NDVI records: {len(self.ndvi.indatabase)}.
+NDVI database path: {self.ndvi.database}
+
+EVI records: {len(self.evi.indatabase)}.
+EVI database path: {self.evi.database}
+
+NBR records: {len(self.nbr.indatabase)}.
+NBR database path: {self.nbr.database}
+        '''
+
+    def order_indatabase(self):
+        '''order indatabase attributes'''
+        if len(self.ndvi.indatabase) > 0:
+            self.ndvi.indatabase.sort()
+        if len(self.evi.indatabase) > 0:
+            self.evi.indatabase.sort()
+        if len(self.nbr.indatabase) > 0:
+            self.nbr.indatabase.sort()
+
+    def compare_indatabase(self):
+        '''compare indatabase and return elements that are equal'''
+        self.order_indatabase()
+        if len(self.ndvi.indatabase) > 0 or len(self.evi.indatabase) > 0 or len(self.nbr.indatabase) > 0:
+            common_elements = list(set(self.ndvi.indatabase) & set(self.evi.indatabase) & set(self.nbr.indatabase))
+        else:
+            common_elements = []
+        return common_elements
+
+    def read_product_files(self):
+        '''read product files'''
+        return [value for value in os.listdir(self.productpath) if '.hdf' in value]
+
+    def get_product_ids(self):
+        '''get product ids'''
+        product_ids = [value.split('.')[1] for value in self.product_files]
+        return product_ids
+
+    def check_product_files(self):
+        '''extract product ids from product files'''
+        files_id = []
+        for product_id in self.product_ids:
+            if product_id not in files_id:
+                files_id.append(product_id)
+        files_id.sort()
+        return files_id
+
+    def count_scenes_occurrences(self):
+        '''count self.all_scenes in self.product_ids returning a dictionary'''
+        count_scenes = {}
+        for scene in self.all_scenes:
+            count_scenes[scene] = self.product_ids.count(scene)
+        return count_scenes
+
+    def get_overpopulated_scenes(self):
+        '''get scenes with more than 9 items from self.scenes_occurrences'''
+        overpopulated_scenes = []
+        for scene,occurrences in self.scenes_occurrences.items():
+            if occurrences > 9:
+                overpopulated_scenes.append(scene)
+        return overpopulated_scenes
+
+    def get_incomplete_scenes(self):
+        '''get scenes with less than 9 items from self.scenes_occurrences'''
+        incomplete_scenes = []
+        for scene,occurrences in self.scenes_occurrences.items():
+            if occurrences < 9:
+                incomplete_scenes.append(scene)
+        return incomplete_scenes
+
+    def get_complete_scenes(self):
+        '''get scenes with 9 items from self.scenes_occurrences'''
+        complete_scenes = []
+        for scene,occurrences in self.scenes_occurrences.items():
+            if occurrences == 9:
+                complete_scenes.append(scene)
+        return complete_scenes
+
+    def get_scenes_out_of_db(self):
+        '''compare
+        self.ndvi.indatabase and
+        self.evi.indatabase and
+        self.nbr.indatabase and
+        return scenes that are not in the database'''
+        scenes_out_of_db = []
+        for scene in self.complete_scenes:
+            if scene not in self.common_elements:
+                scenes_out_of_db.append(scene)
+        return scenes_out_of_db
+
+    def run_extraction(self, limit = None):
+        '''run scenes to process'''
+
+        with HiddenPrints():
+            self.ndvi.checkdatabase()
+            self.evi.checkdatabase()
+            self.nbr.checkdatabase()
+
+        self.common_elements = self.compare_indatabase()
+        self.scenes_to_process = self.get_scenes_out_of_db()
+
+        tempfolder = temp_folder()
+
+        scenes_path = [os.path.join(self.productpath,value) for value in self.product_files]
+
+        if limit is not None:
+            scenes_to_process = self.scenes_to_process[:limit]
+        else:
+            scenes_to_process = self.scenes_to_process
+
+        for scene in scenes_to_process:
+            if scene not in self.ndvi.indatabase:
+                print(f'Processing scene {scene} for ndvi')
+                r = re.compile('.*'+scene+'.*')
+                selected_files = list(filter(r.match, scenes_path))
+                start = time.time()
+                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                try:
+                    mos = mosaic_raster(selected_files,'250m 16 days NDVI')
+                    mos = mos * 0.1
+                except:
+                    continue
+                temporal_raster = os.path.join(tempfolder,'ndvi_'+scene+'.tif')
+                result_file = os.path.join(tempfolder,'ndvi_'+scene+'.csv')
+                mos.rio.to_raster(temporal_raster, compress='LZW')
+                run_WeightedMeanExtraction(temporal_raster,result_file)
+                write_line(self.ndvi.database, result_file, self.ndvi.catchment_names, scene, file_date, nrow = 1)
+                end = time.time()
+                time_dif = str(round(end - start))
+                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                write_log(hcl.log_veg_o_modis_ndvi_mean,scene,currenttime,time_dif,self.ndvi.database)
+                os.remove(temporal_raster)
+                os.remove(result_file)
+                gc.collect()
+            if scene not in self.evi.indatabase:
+                print(f'Processing scene {scene} for evi')
+                r = re.compile('.*'+scene+'.*')
+                selected_files = list(filter(r.match, scenes_path))
+                start = time.time()
+                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                try:
+                    mos = mosaic_raster(selected_files,'250m 16 days EVI')
+                    mos = mos * 0.1
+                except:
+                    continue
+                temporal_raster = os.path.join(tempfolder,'evi_'+scene+'.tif')
+                result_file = os.path.join(tempfolder,'evi_'+scene+'.csv')
+                mos.rio.to_raster(temporal_raster, compress='LZW')
+                run_WeightedMeanExtraction(temporal_raster,result_file)
+                write_line(self.evi.database, result_file, self.evi.catchment_names, scene, file_date, nrow = 1)
+                end = time.time()
+                time_dif = str(round(end - start))
+                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                write_log(hcl.log_veg_o_modis_evi_mean,scene,currenttime,time_dif,self.evi.database)
+                os.remove(temporal_raster)
+                os.remove(result_file)
+                gc.collect()
+            if scene not in self.nbr.indatabase:
+                print(f'Processing scene {scene} for nbr')
+                r = re.compile('.*'+scene+'.*')
+                selected_files = list(filter(r.match, scenes_path))
+                start = time.time()
+                file_date = datetime.strptime(scene, 'A%Y%j').strftime('%Y-%m-%d')
+                try:
+                    mos = mosaic_nd_raster(selected_files,'250m 16 days NIR reflectance', '250m 16 days MIR reflectance')
+                except:
+                    continue
+                temporal_raster = os.path.join(tempfolder,'nbr_'+scene+'.tif')
+                result_file = os.path.join(tempfolder,'nbr_'+scene+'.csv')
+                mos.rio.to_raster(temporal_raster, compress='LZW', dtype = 'int16')
+                run_WeightedMeanExtraction(temporal_raster,result_file)
+                write_line(self.nbr.database, result_file, self.nbr.catchment_names, scene, file_date, nrow = 1)
+                end = time.time()
+                time_dif = str(round(end - start))
+                currenttime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                print(f'Time elapsed for {scene}: {str(round(end - start))} seconds')
+                write_log(hcl.log_veg_o_int_nbr_mean,scene,currenttime,time_dif,self.nbr.database)
+                os.remove(temporal_raster)
+                os.remove(result_file)
+                gc.collect()
+
+import random
+
+class generate_random:
+    '''generate a random number between 0.5 and 4.5'''
+
+    def __init__(self):
+        self.voltage()
+
+    def voltage(self):
+        return random.uniform(0.5,4.5)
