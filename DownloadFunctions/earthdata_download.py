@@ -127,7 +127,7 @@ if __name__ == '__main__':
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%m%d') for value in files if file_extension in value.lower()]
         elif(ed_opt == 'precipitation'):
             dates = [datetime.strptime(value.lower().split('.')[4].split('-')[0], '%Y%m%d') for value in files if file_extension in value.lower()]    
-        else:    
+        else:
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%j') for value in files if file_extension in value.lower()]
         if len(dates) >= 1:
             recent_date = max(dates)
@@ -144,26 +144,13 @@ if __name__ == '__main__':
         print(f'Folder {database_path} not found, creating it')
         os.makedirs(database_path)
         start_date = '2000-01-01'
-    
+
     # https://github.com/podaac/data-subscriber#step-2-setup-your-earthdata-login
     # about netrc (.netrc):
     # machine urs.earthdata.nasa.gov
     #     login <your username>
     #     password <your password>
-    auth = Auth().login(strategy="netrc")    
 
-    Query = (DataGranules(auth)
-        .short_name(product)
-        .bounding_box(-73.73,-55.01,-67.05,-17.63)
-        .downloadable(True).version(version)
-        .temporal(start_date,end_date))
-    granules = Query.get_all()
-
-    data_links = [granule.data_links(access="onprem") for granule in granules]
-    if platform == 'modis':
-        download_links = [value[0] for value in data_links if any(substring in value[0] for substring in grids)]
-    else:
-        download_links = [value[0] for value in data_links]
 
     # because for nsidc many threads fail
     if(ed_opt == 'snow'):
@@ -172,14 +159,31 @@ if __name__ == '__main__':
         threads = 2
     elif(ed_opt == 'precipitation'):
         threads = 3
-    else:    
+    else:
         threads = 8
 
     store = Store(auth)
 
     while True:
         try:
+            auth = Auth().login(strategy="netrc")
+
+            Query = (DataGranules(auth)
+                .short_name(product)
+                .bounding_box(-73.73,-55.01,-67.05,-17.63)
+                .downloadable(True).version(version)
+                .temporal(start_date,end_date))
+            granules = Query.get_all()
+
+            data_links = [granule.data_links(access="onprem") for granule in granules]
+            if platform == 'modis':
+                download_links = [value[0] for value in data_links if any(substring in value[0] for substring in grids)]
+            else:
+                download_links = [value[0] for value in data_links]
+
             store.get(download_links, database_path, threads = threads)
+        except KeyboardInterrupt:
+            print('Interrupted by keyboard')
         except:
             continue
         break
