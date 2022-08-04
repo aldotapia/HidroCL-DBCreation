@@ -162,7 +162,7 @@ if __name__ == '__main__':
     else:
         threads = 8
 
-    store = Store(auth)
+    
 
     while True:
         try:
@@ -181,6 +181,8 @@ if __name__ == '__main__':
             else:
                 download_links = [value[0] for value in data_links]
 
+            store = Store(auth)
+            
             store.get(download_links, database_path, threads = threads)
         except KeyboardInterrupt:
             print('Interrupted by keyboard')
