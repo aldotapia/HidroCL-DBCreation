@@ -42,7 +42,7 @@ earthdata_products = {
 }
 
 earthdata_platform = {
-    'reflectance':'MODIS',
+    'reflectance':'modis',
     'vegetation':'modis',
     'lai':'modis',
     'albedo':'modis',
@@ -126,7 +126,7 @@ if __name__ == '__main__':
         if(ed_opt == 'landdata'):
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%m%d') for value in files if file_extension in value.lower()]
         elif(ed_opt == 'precipitation'):
-            dates = [datetime.strptime(value.lower().split('.')[4].split('-')[0], '%Y%m%d') for value in files if file_extension in value.lower()]    
+            dates = [datetime.strptime(value.lower().split('.')[4].split('-')[0], '%Y%m%d') for value in files if file_extension in value.lower()]
         else:
             dates = [datetime.strptime(value.lower().split('.')[1], 'a%Y%j') for value in files if file_extension in value.lower()]
         if len(dates) >= 1:
@@ -162,8 +162,6 @@ if __name__ == '__main__':
     else:
         threads = 8
 
-    
-
     while True:
         try:
             auth = Auth().login(strategy="netrc")
@@ -182,7 +180,7 @@ if __name__ == '__main__':
                 download_links = [value[0] for value in data_links]
 
             store = Store(auth)
-            
+
             store.get(download_links, database_path, threads = threads)
         except KeyboardInterrupt:
             print('Interrupted by keyboard')
