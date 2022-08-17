@@ -15,3 +15,7 @@ Class tests/hidroclabc.py
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
 */__pycache__/*
+.idea/vcs.xml
+.gitignore
+.idea/HidroCL-DBCreation.iml
+.idea/modules.xml
