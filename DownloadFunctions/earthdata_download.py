@@ -160,7 +160,7 @@ if __name__ == '__main__':
     elif(ed_opt == 'precipitation'):
         threads = 3
     else:
-        threads = 8
+        threads = 2
 
     while True:
         try:
